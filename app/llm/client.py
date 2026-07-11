@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Type, TypeVar
 
 import httpx
@@ -31,14 +32,22 @@ def _call_openrouter(system: str, user: str) -> str:
             {"role": "user", "content": user},
         ],
     }
+    # Free models are frequently rate-limited (429); back off and retry a few
+    # times before surfacing the error.
     with httpx.Client(timeout=60) as client:
-        resp = client.post(
-            f"{settings.openrouter_base_url}/chat/completions",
-            headers=headers,
-            json=payload,
-        )
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
+        for attempt in range(4):
+            resp = client.post(
+                f"{settings.openrouter_base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+            )
+            if resp.status_code == 429 and attempt < 3:
+                time.sleep(2 * (attempt + 1))
+                continue
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
+    resp.raise_for_status()  # pragma: no cover
+    return resp.json()["choices"][0]["message"]["content"]  # pragma: no cover
 
 
 def complete_json(

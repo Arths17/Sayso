@@ -52,7 +52,7 @@ env vars below to switch to real services — no code changes.
 | Var | Purpose | Default |
 |-----|---------|---------|
 | `OPENROUTER_API_KEY` | Enables real LLM calls via OpenRouter | unset → stub LLM |
-| `SAYSO_LLM_MODEL` | Model slug (confirm on openrouter.ai/models) | `anthropic/claude-sonnet-4.5` |
+| `SAYSO_LLM_MODEL` | Model slug (confirm on openrouter.ai/models) | `nvidia/nemotron-3-super-120b-a12b:free` |
 | `SAYSO_LLM_MAX_RETRIES` | JSON-validation retries | `2` |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to Firebase service-account JSON | unset → in-memory |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Inline service-account JSON (for Vercel) | unset |

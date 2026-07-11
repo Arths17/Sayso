@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SaySo — type the automation, watch it run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .mark svg{ width:22px; height:22px; }
+  .hero-grid{ display:grid; grid-template-columns: 1.3fr 1fr; border-top:1px solid var(--line-dark); border-bottom:1px solid var(--line-dark); }
+  .hero-copy{ padding: 56px var(--gutter) 60px; border-right:1px solid var(--line-dark); }
+  .cmdbar{ display:flex; align-items:center; gap:12px; border:1px solid var(--line-dark); padding:16px 18px; margin-top:32px; max-width:520px; }
+  .cmdbar .dot{ width:7px; height:7px; background:var(--buckthorn); flex-shrink:0; }
+  .cmdbar span{ font-family:var(--font-mono); font-size:0.8rem; color:var(--moonlight); opacity:0.85; }
+  .hero-visual{ position:relative; padding: 28px; display:flex; flex-direction:column; gap:10px; background: var(--neverything); border-left: 1px solid var(--line-dark); }
+  .node-chip{ display:flex; align-items:center; gap:8px; border:1px solid var(--line-dark); padding:10px 12px; font-family:var(--font-mono); font-size:0.66rem; color:var(--moonlight); }
+  .node-chip .ok{ margin-left:auto; color:var(--buckthorn); }
+  .node-line{ width:1px; height:12px; background:var(--line-dark); margin-left:14px; }
+  .integrations{ display:flex; flex-wrap:wrap; gap:10px; padding: 4px var(--gutter) 44px; }
+  .chip{ font-family:var(--font-mono); font-size:0.7rem; letter-spacing:0.04em; border:1px solid rgba(255,255,255,0.14); padding:8px 14px; }
+  .cta-band{ display:flex; align-items:center; justify-content:space-between; padding: 48px var(--gutter); border-top:1px solid rgba(255,255,255,0.1); flex-wrap:wrap; gap:20px; }
+  footer.foot{ display:flex; justify-content:space-between; align-items:center; padding: 20px var(--gutter); border-top:1px solid rgba(255,255,255,0.1); font-family:var(--font-mono); font-size:0.66rem; letter-spacing:0.04em; opacity:0.5; flex-wrap:wrap; gap:10px; }
+  @media (max-width: 900px){
+    .hero-grid{ grid-template-columns:1fr; }
+    .hero-copy{ border-right:none; border-bottom:1px solid var(--line-dark); }
+  }
+</style>
+</head>
+<body>
+
+<header class="frame dark frame-hero">
+
+  <div class="hero-glow" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+    <span class="blob b3"></span>
+    <span class="blob b4"></span>
+    <span class="grain"></span>
+  </div>
+
+  <nav class="nav">
+    <div class="mark">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="3" stroke="var(--buckthorn)" stroke-width="1.6"/><path d="M8 8L12 12L8 16" stroke="var(--moonlight)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      SAYSO
+    </div>
+    <div class="navlinks">
+      <a href="index.html">Home</a>
+      <a href="builder.html">Builder</a>
+      <a href="connectors.html">Connectors</a>
+      <a href="runs.html">Runs</a>
+    </div>
+    <a href="auth.html" class="btn btn-ghost-dark" style="border-color:var(--line-dark); padding:10px 18px;">Sign in</a>
+  </nav>
+
+  <div class="hero-grid">
+    <div class="hero-copy">
+      <span class="mono" style="color:var(--buckthorn); text-transform:none; opacity:1;">built at vsHacks 2026, 24hr build</span>
+      <h1 style="color:var(--moonlight); margin-top:16px;">Type the automation.<br>Watch it run.</h1>
+      <p class="mono" style="text-transform:none; letter-spacing:0.01em; font-size:0.9rem; opacity:0.62; max-width:460px; margin-top:22px; line-height:1.65;">
+        Most automation tools make you drag blocks around like n8n or Zapier. SaySo skips that — you write one sentence, an LLM turns it into a real workflow graph, and you click run to watch each step execute live.
+      </p>
+      <div class="cmdbar">
+        <span class="dot"></span>
+        <span>"When I get an invoice PDF in Gmail, pull the number, total, and due date, save it to Drive, log it to Sheets, and Slack me."</span>
+      </div>
+      <div style="display:flex; gap:14px; margin-top:28px;">
+        <a href="builder.html" class="btn btn-primary">Open the builder &rarr;</a>
+        <a href="#" class="btn btn-ghost-dark" style="border-color:var(--line-dark);">Source on GitHub</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="mono" style="color:var(--moonlight); opacity:0.6; margin-bottom:4px;">run #48 — complete</div>
+      <div class="node-chip">gmail.trigger <span class="ok">&check;</span></div>
+      <div class="node-line"></div>
+      <div class="node-chip">download attachment <span class="ok">&check;</span></div>
+      <div class="node-line"></div>
+      <div class="node-chip">extract pdf text <span class="ok">&check;</span></div>
+      <div class="node-line"></div>
+      <div class="node-chip">ai field extraction <span class="ok">&check;</span></div>
+      <div class="node-line"></div>
+      <div class="node-chip">upload to drive <span class="ok">&check;</span></div>
+      <div class="node-line"></div>
+      <div class="node-chip">append to sheets <span class="ok">&check;</span></div>
+      <div class="node-line"></div>
+      <div class="node-chip">notify slack <span class="ok">&check;</span></div>
+    </div>
+  </div>
+
+</header>
+
+<main class="frame light" style="margin-top:0;">
+
+  <div class="feature-lead">
+    <div>
+      <h3>Before anything runs, you get a plan you can actually read.</h3>
+      <p>Type a sentence and the planner turns it into a trigger plus an ordered list of steps. We could've hidden that behind a spinner. We didn't — mostly because debugging a black box at 3am during the hackathon sounded miserable.</p>
+    </div>
+    <div class="feature-example">
+      { "trigger": "gmail.new_attachment",<br>
+      &nbsp;&nbsp;"steps": ["download_attachment", "extract_pdf",<br>
+      &nbsp;&nbsp;"extract_invoice_fields", "upload_drive",<br>
+      &nbsp;&nbsp;"append_sheet", "notify_slack"] }
+    </div>
+  </div>
+
+  <div class="feature-list">
+    <div class="feature-row">
+      <h4>The graph is real</h4>
+      <p>Every plan renders as a node chain you can click through, trigger down to the last step, before you hit run. It's the actual execution order, not a diagram drawn to look impressive.</p>
+    </div>
+    <div class="feature-row">
+      <h4>Retries happen on their own</h4>
+      <p>Hit a Sheets rate limit and SaySo waits a couple seconds and tries again. An expired login pauses the run and asks you to reconnect instead of failing quietly somewhere you'd never notice. This ate more of our 24 hours than we budgeted for, honestly.</p>
+    </div>
+    <div class="feature-row">
+      <h4>Conditions, loops, and approvals</h4>
+      <p>"If the invoice is over $5,000, tell my manager instead" becomes a branch. "For every row in this sheet" becomes a loop. "Let me approve it first" adds a pause the run waits on until you click through.</p>
+    </div>
+  </div>
+
+  <div class="flow-line container">
+    frontend (react) &rarr; fastapi backend &rarr; llm planner &rarr; workflow generator &rarr; execution engine &rarr; connector classes
+  </div>
+
+  <div class="integrations">
+    <span class="chip">Gmail</span>
+    <span class="chip">Google Sheets</span>
+    <span class="chip">Google Drive</span>
+    <span class="chip">Slack</span>
+    <span class="chip">Discord</span>
+    <span class="chip">HTTP / webhook</span>
+  </div>
+
+  <div class="cta-band">
+    <h2 style="max-width:520px;">Six connectors was enough<br>for every demo we tried.</h2>
+    <a href="builder.html" class="btn btn-primary">Try it</a>
+  </div>
+
+  <footer class="foot">
+    <span>SaySo — vsHacks 2026</span>
+    <span>open source, MIT licensed</span>
+  </footer>
+
+</main>
+
+</body>
+</html>

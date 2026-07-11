@@ -143,6 +143,7 @@ class WorkflowRecord(BaseModel):
     created_at: str | None = None
     updated_at: str | None = None
     clarification_answers: dict[str, str] = Field(default_factory=dict)
+    owner_uid: str = ""
 
 
 class GenerateRequest(BaseModel):

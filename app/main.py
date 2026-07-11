@@ -18,6 +18,7 @@ from app.schemas import (
     GenerateResponse,
     HealApprovalRequest,
     RunResponse,
+    WorkflowRecord,
     WorkflowSpec,
 )
 from app.storage import repository, versions
@@ -27,6 +28,18 @@ app = FastAPI(title="Sayso", version="0.1.0")
 # app/auth.py) — bypassed automatically when no Firebase credentials are
 # configured, so local dev/tests need no extra setup.
 router = APIRouter(dependencies=[Depends(get_current_user)])
+
+
+def _get_owned_workflow(workflow_id: str, user) -> WorkflowRecord:
+    """Fetch a workflow and verify the caller owns it — every workflow-scoped
+    route goes through this instead of repository.get_workflow directly, so
+    an authenticated user can't read/run/edit another user's workflow."""
+    record = repository.get_workflow(workflow_id)
+    if not record:
+        raise HTTPException(404, "workflow not found")
+    if record.owner_uid != user.uid:
+        raise HTTPException(403, "not authorized to access this workflow")
+    return record
 
 
 @app.get("/health")
@@ -67,57 +80,49 @@ async def google_oauth_callback(code: str, state: str):
 
 
 @router.post("/workflows/generate", response_model=GenerateResponse)
-def generate(req: GenerateRequest):
-    return service.generate(req.prompt)
+def generate(req: GenerateRequest, user=Depends(get_current_user)):
+    return service.generate(req.prompt, owner_uid=user.uid)
 
 
 @router.post("/workflows/{workflow_id}/clarify", response_model=GenerateResponse)
-def clarify(workflow_id: str, req: ClarifyRequest):
-    try:
-        return service.clarify(workflow_id, req.answers)
-    except KeyError:
-        raise HTTPException(404, "workflow not found")
+def clarify(workflow_id: str, req: ClarifyRequest, user=Depends(get_current_user)):
+    _get_owned_workflow(workflow_id, user)
+    return service.clarify(workflow_id, req.answers)
 
 
 @router.post("/workflows/{workflow_id}/edit")
-def edit(workflow_id: str, req: EditRequest):
-    try:
-        record, version = service.edit(workflow_id, req.instruction)
-    except KeyError:
-        raise HTTPException(404, "workflow not found")
+def edit(workflow_id: str, req: EditRequest, user=Depends(get_current_user)):
+    _get_owned_workflow(workflow_id, user)
+    record, version = service.edit(workflow_id, req.instruction)
     return {"workflow_id": workflow_id, "version": version.id, "diff": version.diff, "spec": record.spec}
 
 
 @router.get("/workflows/{workflow_id}")
-def get_workflow(workflow_id: str):
-    record = repository.get_workflow(workflow_id)
-    if not record:
-        raise HTTPException(404, "workflow not found")
-    return record
+def get_workflow(workflow_id: str, user=Depends(get_current_user)):
+    return _get_owned_workflow(workflow_id, user)
 
 
-async def _start_run(workflow_id: str, dry_run: bool, uid: str) -> RunResponse:
-    record = repository.get_workflow(workflow_id)
-    if not record:
-        raise HTTPException(404, "workflow not found")
+async def _start_run(workflow_id: str, dry_run: bool, user) -> RunResponse:
+    record = _get_owned_workflow(workflow_id, user)
     execution = repository.new_execution(workflow_id, record.current_version_id, dry_run)
-    execution.context["__uid__"] = uid
+    execution.context["__uid__"] = user.uid
     execution = await executor.run_execution(record.spec, execution)
     return RunResponse(execution_id=execution.id, state=execution.state)
 
 
 @router.post("/workflows/{workflow_id}/dry-run", response_model=RunResponse)
 async def dry_run(workflow_id: str, user=Depends(get_current_user)):
-    return await _start_run(workflow_id, dry_run=True, uid=user.uid)
+    return await _start_run(workflow_id, dry_run=True, user=user)
 
 
 @router.post("/workflows/{workflow_id}/run", response_model=RunResponse)
 async def run(workflow_id: str, user=Depends(get_current_user)):
-    return await _start_run(workflow_id, dry_run=False, uid=user.uid)
+    return await _start_run(workflow_id, dry_run=False, user=user)
 
 
 @router.get("/workflows/{workflow_id}/status")
-def status(workflow_id: str, execution_id: str | None = None):
+def status(workflow_id: str, execution_id: str | None = None, user=Depends(get_current_user)):
+    _get_owned_workflow(workflow_id, user)
     execs = repository.get_store().list_executions(workflow_id)
     if not execs:
         raise HTTPException(404, "no executions")
@@ -131,10 +136,10 @@ def status(workflow_id: str, execution_id: str | None = None):
 
 
 @router.post("/workflows/{workflow_id}/executions/{execution_id}/heal")
-async def heal_approval(workflow_id: str, execution_id: str, req: HealApprovalRequest):
-    record = repository.get_workflow(workflow_id)
+async def heal_approval(workflow_id: str, execution_id: str, req: HealApprovalRequest, user=Depends(get_current_user)):
+    record = _get_owned_workflow(workflow_id, user)
     execution = repository.get_execution(workflow_id, execution_id)
-    if not record or not execution:
+    if not execution:
         raise HTTPException(404, "not found")
     if not execution.pending_heal:
         raise HTTPException(400, "no pending heal patch")
@@ -149,10 +154,10 @@ async def heal_approval(workflow_id: str, execution_id: str, req: HealApprovalRe
 
 
 @router.post("/workflows/{workflow_id}/executions/{execution_id}/approve")
-async def approve(workflow_id: str, execution_id: str, req: ApprovalRequest):
-    record = repository.get_workflow(workflow_id)
+async def approve(workflow_id: str, execution_id: str, req: ApprovalRequest, user=Depends(get_current_user)):
+    record = _get_owned_workflow(workflow_id, user)
     execution = repository.get_execution(workflow_id, execution_id)
-    if not record or not execution:
+    if not execution:
         raise HTTPException(404, "not found")
     if not execution.pending_approval_node_id:
         raise HTTPException(400, "no pending approval")
@@ -161,12 +166,14 @@ async def approve(workflow_id: str, execution_id: str, req: ApprovalRequest):
 
 
 @router.get("/workflows/{workflow_id}/versions")
-def list_versions(workflow_id: str):
+def list_versions(workflow_id: str, user=Depends(get_current_user)):
+    _get_owned_workflow(workflow_id, user)
     return versions.list_versions(workflow_id)
 
 
 @router.post("/workflows/{workflow_id}/revert/{version_id}")
-def revert(workflow_id: str, version_id: str):
+def revert(workflow_id: str, version_id: str, user=Depends(get_current_user)):
+    _get_owned_workflow(workflow_id, user)
     try:
         v = versions.revert(workflow_id, version_id)
     except KeyError:
@@ -175,10 +182,8 @@ def revert(workflow_id: str, version_id: str):
 
 
 @router.get("/workflows/{workflow_id}/nodes/{node_id}/explain")
-def explain(workflow_id: str, node_id: str):
-    record = repository.get_workflow(workflow_id)
-    if not record:
-        raise HTTPException(404, "workflow not found")
+def explain(workflow_id: str, node_id: str, user=Depends(get_current_user)):
+    record = _get_owned_workflow(workflow_id, user)
     node = record.spec.get_node(node_id)
     if not node:
         raise HTTPException(404, "node not found")

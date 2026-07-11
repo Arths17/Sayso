@@ -6,7 +6,7 @@ from app.storage.firestore_client import get_store
 from app.utils import new_id, now_iso
 
 
-def create_workflow(prompt: str, spec: WorkflowSpec) -> WorkflowRecord:
+def create_workflow(prompt: str, spec: WorkflowSpec, owner_uid: str = "") -> WorkflowRecord:
     store = get_store()
     wid = new_id("wf_")
     record = WorkflowRecord(
@@ -15,6 +15,7 @@ def create_workflow(prompt: str, spec: WorkflowSpec) -> WorkflowRecord:
         spec=spec,
         created_at=now_iso(),
         updated_at=now_iso(),
+        owner_uid=owner_uid,
     )
     store.set_workflow(wid, record.model_dump())
     v = versions.create_version(wid, spec, message="initial")

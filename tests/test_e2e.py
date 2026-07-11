@@ -130,6 +130,32 @@ def test_heal_patch_rejected_by_validator():
     asyncio.run(go())
 
 
+def test_workflow_access_denied_to_non_owner():
+    from app.auth import AuthedUser, get_current_user
+    from app.main import app
+
+    r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
+    wid = r.json()["workflow_id"]
+
+    app.dependency_overrides[get_current_user] = lambda: AuthedUser(uid="someone-else")
+    try:
+        r2 = client.get(f"/workflows/{wid}")
+        assert r2.status_code == 403
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    # the actual owner (dev-user) can still access it
+    r3 = client.get(f"/workflows/{wid}")
+    assert r3.status_code == 200
+
+
+def test_workflow_owner_uid_set_on_creation():
+    r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
+    wid = r.json()["workflow_id"]
+    record = repository.get_workflow(wid)
+    assert record.owner_uid == "dev-user"
+
+
 def test_workflows_accessible_without_token_when_auth_disabled():
     # SAYSO_AUTH_DISABLED=true is set in conftest.py -> no credentials configured
     r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
@@ -391,7 +417,7 @@ def test_human_approval_pauses_and_resumes(fake_slack):
         Node(id="notify", type=NodeType.connector, connector="SlackNotify",
              config={"channel": "#finance"}, depends_on=["gate"]),
     ])
-    rec = repository.create_workflow("approval-gate", spec)
+    rec = repository.create_workflow("approval-gate", spec, owner_uid="dev-user")
 
     async def go():
         ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=False)
@@ -414,7 +440,7 @@ def test_human_approval_rejection_fails_execution():
     spec = WorkflowSpec(name="approval-gate-reject", nodes=[
         Node(id="gate", type=NodeType.human_approval, config={"auto_approve": False}),
     ])
-    rec = repository.create_workflow("approval-gate-reject", spec)
+    rec = repository.create_workflow("approval-gate-reject", spec, owner_uid="dev-user")
 
     async def go():
         ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=False)

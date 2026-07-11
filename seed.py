@@ -19,7 +19,7 @@ EXAMPLES = [
 async def main():
     print("=== Seeding Sayso example workflows ===\n")
     for prompt in EXAMPLES:
-        resp = service.generate(prompt)
+        resp = service.generate(prompt, owner_uid="dev-user")
         print(f"[{resp.status}] {resp.workflow_id}")
         print(f"   prompt: {prompt[:70]}...")
         if resp.status == "needs_clarification":
@@ -38,7 +38,7 @@ async def main():
         trigger=Trigger(type="manual"),
         nodes=[Node(id="notify", type=NodeType.connector, connector="SlackNotify", config={})],
     )
-    rec = repository.create_workflow("broken slack demo", broken)
+    rec = repository.create_workflow("broken slack demo", broken, owner_uid="dev-user")
     print(f"[self-heal demo] {rec.id}")
     print("   real-run this workflow to trigger the healer:")
     print(f"   POST /workflows/{rec.id}/run")

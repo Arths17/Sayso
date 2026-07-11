@@ -117,8 +117,50 @@ def test_heal_patch_rejected_by_validator():
     asyncio.run(go())
 
 
-def test_local_model_unavailable_without_torch():
+def test_workflows_accessible_without_token_when_auth_disabled():
+    # SAYSO_AUTH_DISABLED=true is set in conftest.py -> no credentials configured
+    r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
+    assert r.status_code == 200
+
+
+def test_auth_rejects_missing_token_when_enabled(monkeypatch):
+    from app import auth
+
+    class FakeSettings:
+        auth_enabled = True
+
+    monkeypatch.setattr(auth, "settings", FakeSettings())
+    r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
+    assert r.status_code == 401
+
+
+def test_auth_rejects_invalid_token_when_enabled(monkeypatch):
+    from firebase_admin import auth as firebase_auth
+
+    from app import auth
+
+    class FakeSettings:
+        auth_enabled = True
+
+    monkeypatch.setattr(auth, "settings", FakeSettings())
+    monkeypatch.setattr(auth.firebase_admin_app, "get_app", lambda: object())
+
+    def fake_verify(token, app=None):
+        raise ValueError("invalid token")
+
+    monkeypatch.setattr(firebase_auth, "verify_id_token", fake_verify)
+
+    r = client.post(
+        "/workflows/generate",
+        json={"prompt": "notify #finance"},
+        headers={"Authorization": "Bearer not-a-real-token"},
+    )
+    assert r.status_code == 401
+
+
+def test_local_model_unavailable_without_torch(monkeypatch):
     from app.llm import local_model
+    monkeypatch.setattr(local_model.settings, "local_fallback_enabled", False)
     with pytest.raises(local_model.LocalModelUnavailable):
         local_model.generate_json(system="s", user="u")
 
@@ -143,7 +185,7 @@ def test_openrouter_failure_falls_back_to_local_model(monkeypatch):
 
 
 def test_openrouter_failure_raises_when_local_model_also_unavailable(monkeypatch):
-    from app.llm import client
+    from app.llm import client, local_model
     from pydantic import BaseModel
 
     class Dummy(BaseModel):
@@ -155,6 +197,7 @@ def test_openrouter_failure_raises_when_local_model_also_unavailable(monkeypatch
         raise __import__("httpx").ConnectError("network down")
 
     monkeypatch.setattr(client, "_call_openrouter", boom)
+    monkeypatch.setattr(local_model, "generate_json", lambda s, u: (_ for _ in ()).throw(local_model.LocalModelUnavailable("disabled")))
 
     with pytest.raises(client.LLMError):
         client.complete_json(task="t", system="s", user="u", schema=Dummy)

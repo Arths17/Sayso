@@ -5,3 +5,4 @@ __pycache__/
 .vercel/
 firebase-service-account*.json
 .pytest_cache/
+.claude/

@@ -99,25 +99,11 @@ class InMemoryStore(Store):
 
 class FirestoreStore(Store):
     def __init__(self) -> None:
-        import firebase_admin
-        from firebase_admin import credentials, firestore
+        from firebase_admin import firestore
 
-        if not firebase_admin._apps:
-            if settings.firebase_service_account_json:
-                cred = credentials.Certificate(
-                    json.loads(settings.firebase_service_account_json)
-                )
-            elif settings.firebase_credentials_path:
-                cred = credentials.Certificate(settings.firebase_credentials_path)
-            else:
-                cred = credentials.ApplicationDefault()
-            firebase_admin.initialize_app(
-                cred,
-                {"projectId": settings.firebase_project_id}
-                if settings.firebase_project_id
-                else None,
-            )
-        self.db = firestore.client()
+        from app.firebase_admin_app import get_app
+
+        self.db = firestore.client(get_app())
 
     def _wf(self, wid: str):
         return self.db.collection("workflows").document(wid)

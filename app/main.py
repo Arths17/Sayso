@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
 from app import service
 from app.agents import explainer
+from app.auth import get_current_user
 from app.connectors import registry
 from app.engine import executor
 from app.schemas import (
@@ -21,6 +22,10 @@ from app.schemas import (
 from app.storage import repository, versions
 
 app = FastAPI(title="Sayso", version="0.1.0")
+# every /workflows route requires a verified Firebase Auth ID token (see
+# app/auth.py) — bypassed automatically when no Firebase credentials are
+# configured, so local dev/tests need no extra setup.
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 @app.get("/health")
@@ -28,12 +33,12 @@ def health():
     return {"status": "ok", "service": "sayso", "connectors": registry.available()}
 
 
-@app.post("/workflows/generate", response_model=GenerateResponse)
+@router.post("/workflows/generate", response_model=GenerateResponse)
 def generate(req: GenerateRequest):
     return service.generate(req.prompt)
 
 
-@app.post("/workflows/{workflow_id}/clarify", response_model=GenerateResponse)
+@router.post("/workflows/{workflow_id}/clarify", response_model=GenerateResponse)
 def clarify(workflow_id: str, req: ClarifyRequest):
     try:
         return service.clarify(workflow_id, req.answers)
@@ -41,7 +46,7 @@ def clarify(workflow_id: str, req: ClarifyRequest):
         raise HTTPException(404, "workflow not found")
 
 
-@app.post("/workflows/{workflow_id}/edit")
+@router.post("/workflows/{workflow_id}/edit")
 def edit(workflow_id: str, req: EditRequest):
     try:
         record, version = service.edit(workflow_id, req.instruction)
@@ -50,7 +55,7 @@ def edit(workflow_id: str, req: EditRequest):
     return {"workflow_id": workflow_id, "version": version.id, "diff": version.diff, "spec": record.spec}
 
 
-@app.get("/workflows/{workflow_id}")
+@router.get("/workflows/{workflow_id}")
 def get_workflow(workflow_id: str):
     record = repository.get_workflow(workflow_id)
     if not record:
@@ -67,17 +72,17 @@ async def _start_run(workflow_id: str, dry_run: bool) -> RunResponse:
     return RunResponse(execution_id=execution.id, state=execution.state)
 
 
-@app.post("/workflows/{workflow_id}/dry-run", response_model=RunResponse)
+@router.post("/workflows/{workflow_id}/dry-run", response_model=RunResponse)
 async def dry_run(workflow_id: str):
     return await _start_run(workflow_id, dry_run=True)
 
 
-@app.post("/workflows/{workflow_id}/run", response_model=RunResponse)
+@router.post("/workflows/{workflow_id}/run", response_model=RunResponse)
 async def run(workflow_id: str):
     return await _start_run(workflow_id, dry_run=False)
 
 
-@app.get("/workflows/{workflow_id}/status")
+@router.get("/workflows/{workflow_id}/status")
 def status(workflow_id: str, execution_id: str | None = None):
     execs = repository.get_store().list_executions(workflow_id)
     if not execs:
@@ -91,7 +96,7 @@ def status(workflow_id: str, execution_id: str | None = None):
     return latest
 
 
-@app.post("/workflows/{workflow_id}/executions/{execution_id}/heal")
+@router.post("/workflows/{workflow_id}/executions/{execution_id}/heal")
 async def heal_approval(workflow_id: str, execution_id: str, req: HealApprovalRequest):
     record = repository.get_workflow(workflow_id)
     execution = repository.get_execution(workflow_id, execution_id)
@@ -109,7 +114,7 @@ async def heal_approval(workflow_id: str, execution_id: str, req: HealApprovalRe
     return {"applied": True, "state": execution.state, "execution_id": execution.id}
 
 
-@app.post("/workflows/{workflow_id}/executions/{execution_id}/approve")
+@router.post("/workflows/{workflow_id}/executions/{execution_id}/approve")
 async def approve(workflow_id: str, execution_id: str, req: ApprovalRequest):
     record = repository.get_workflow(workflow_id)
     execution = repository.get_execution(workflow_id, execution_id)
@@ -121,12 +126,12 @@ async def approve(workflow_id: str, execution_id: str, req: ApprovalRequest):
     return {"approved": req.approve, "state": execution.state, "execution_id": execution.id}
 
 
-@app.get("/workflows/{workflow_id}/versions")
+@router.get("/workflows/{workflow_id}/versions")
 def list_versions(workflow_id: str):
     return versions.list_versions(workflow_id)
 
 
-@app.post("/workflows/{workflow_id}/revert/{version_id}")
+@router.post("/workflows/{workflow_id}/revert/{version_id}")
 def revert(workflow_id: str, version_id: str):
     try:
         v = versions.revert(workflow_id, version_id)
@@ -135,7 +140,7 @@ def revert(workflow_id: str, version_id: str):
     return {"reverted_to": version_id, "new_version": v.id}
 
 
-@app.get("/workflows/{workflow_id}/nodes/{node_id}/explain")
+@router.get("/workflows/{workflow_id}/nodes/{node_id}/explain")
 def explain(workflow_id: str, node_id: str):
     record = repository.get_workflow(workflow_id)
     if not record:
@@ -160,3 +165,6 @@ async def stream(websocket: WebSocket, workflow_id: str, execution_id: str):
             await asyncio.sleep(0.5)
     except WebSocketDisconnect:
         pass
+
+
+app.include_router(router)

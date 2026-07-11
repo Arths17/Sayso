@@ -105,7 +105,7 @@ def get_workflow(workflow_id: str, user=Depends(get_current_user)):
 async def _start_run(workflow_id: str, dry_run: bool, user) -> RunResponse:
     record = _get_owned_workflow(workflow_id, user)
     execution = repository.new_execution(workflow_id, record.current_version_id, dry_run)
-    execution.context["__uid__"] = user.uid
+    execution.context["_uid"] = user.uid
     execution = await executor.run_execution(record.spec, execution)
     return RunResponse(execution_id=execution.id, state=execution.state)
 

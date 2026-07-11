@@ -49,12 +49,12 @@ async def run_execution(spec: WorkflowSpec, execution: Execution) -> Execution:
 
     context = execution.context
     context.setdefault("trigger", _trigger_output(spec, execution.dry_run))
-    context.setdefault("__vars__", spec.variables)
+    context.setdefault("_vars", spec.variables)
     for k, v in spec.variables.items():
         context.setdefault(k, v)
 
     completed = _completed_ids(execution)
-    disabled: set[str] = set(execution.context.get("__disabled__", []))
+    disabled: set[str] = set(execution.context.get("_disabled", []))
 
     for node_id in graph.execution_order():
         if node_id in completed or node_id in disabled:
@@ -73,7 +73,7 @@ async def run_execution(spec: WorkflowSpec, execution: Execution) -> Execution:
                 continue
 
         paused = await _execute_node(graph, node, execution, context, completed, disabled)
-        execution.context["__disabled__"] = list(disabled)
+        execution.context["_disabled"] = list(disabled)
         repository.save_execution(execution)
         if paused:
             return execution

@@ -411,7 +411,7 @@ def test_pdf_extract_text_fetches_gmail_attachment(monkeypatch):
 
     result = PDFExtractText().run(
         {"source": {"message_id": "msg1", "attachment_id": "att1"}},
-        {"__uid__": "dev-user"},
+        {"_uid": "dev-user"},
     )
     assert result.output["text"] == ""
 

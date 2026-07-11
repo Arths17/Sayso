@@ -17,7 +17,7 @@ _SHEETS = "https://sheets.googleapis.com/v4/spreadsheets"
 
 
 def _google_auth_header(credentials, provider: str, context: dict) -> dict:
-    uid = context.get("__uid__")
+    uid = context.get("_uid")
     if not uid:
         raise ConnectorError(f"no authenticated user in context for {provider} call")
     token = credentials.token(provider, uid=uid)

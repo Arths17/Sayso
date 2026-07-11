@@ -129,6 +129,32 @@ def test_heal_patch_rejected_by_validator():
     asyncio.run(go())
 
 
+def test_workflow_access_denied_to_non_owner():
+    from app.auth import AuthedUser, get_current_user
+    from app.main import app
+
+    r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
+    wid = r.json()["workflow_id"]
+
+    app.dependency_overrides[get_current_user] = lambda: AuthedUser(uid="someone-else")
+    try:
+        r2 = client.get(f"/workflows/{wid}")
+        assert r2.status_code == 403
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    # the actual owner (dev-user) can still access it
+    r3 = client.get(f"/workflows/{wid}")
+    assert r3.status_code == 200
+
+
+def test_workflow_owner_uid_set_on_creation():
+    r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
+    wid = r.json()["workflow_id"]
+    record = repository.get_workflow(wid)
+    assert record.owner_uid == "dev-user"
+
+
 def test_workflows_accessible_without_token_when_auth_disabled():
     r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
     assert r.status_code == 200
@@ -250,6 +276,144 @@ def test_google_oauth_callback_rejects_invalid_state():
     assert r.status_code == 400
 
 
+def test_ssrf_guard_blocks_private_ip(monkeypatch):
+    import socket
+
+    from app.connectors.base import ConnectorError
+    from app.connectors.ssrf_guard import assert_public_url
+
+    monkeypatch.setattr(
+        socket, "getaddrinfo",
+        lambda *a, **k: [(socket.AF_INET, None, None, "", ("127.0.0.1", 0))],
+    )
+    with pytest.raises(ConnectorError):
+        assert_public_url("http://example.com/")
+
+
+def test_ssrf_guard_blocks_metadata_ip(monkeypatch):
+    import socket
+
+    from app.connectors.base import ConnectorError
+    from app.connectors.ssrf_guard import assert_public_url
+
+    monkeypatch.setattr(
+        socket, "getaddrinfo",
+        lambda *a, **k: [(socket.AF_INET, None, None, "", ("169.254.169.254", 0))],
+    )
+    with pytest.raises(ConnectorError):
+        assert_public_url("http://sneaky.example.com/")
+
+
+def test_ssrf_guard_allows_public_ip(monkeypatch):
+    import socket
+
+    from app.connectors.ssrf_guard import assert_public_url
+
+    monkeypatch.setattr(
+        socket, "getaddrinfo",
+        lambda *a, **k: [(socket.AF_INET, None, None, "", ("93.184.216.34", 0))],
+    )
+    assert_public_url("http://example.com/")  # should not raise
+
+
+def test_ssrf_guard_blocks_non_http_scheme():
+    from app.connectors.base import ConnectorError
+    from app.connectors.ssrf_guard import assert_public_url
+
+    with pytest.raises(ConnectorError):
+        assert_public_url("file:///etc/passwd")
+
+
+def test_http_request_real_run_blocked_for_private_url(monkeypatch):
+    import socket
+
+    from app.connectors.base import ConnectorError
+    from app.connectors.library import HTTPRequest
+
+    monkeypatch.setattr(
+        socket, "getaddrinfo",
+        lambda *a, **k: [(socket.AF_INET, None, None, "", ("127.0.0.1", 0))],
+    )
+    with pytest.raises(ConnectorError):
+        HTTPRequest().run({"url": "http://localhost/admin"}, {})
+
+
+def _make_blank_pdf_base64() -> str:
+    import base64
+    import io
+
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    buf = io.BytesIO()
+    writer.write(buf)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def test_pdf_extract_text_from_inline_base64():
+    from app.connectors.library import PDFExtractText
+
+    result = PDFExtractText().run({"source": _make_blank_pdf_base64()}, {})
+    assert result.output["text"] == ""
+
+
+def test_pdf_extract_text_invalid_base64_raises():
+    from app.connectors.base import ConnectorError
+    from app.connectors.library import PDFExtractText
+
+    with pytest.raises(ConnectorError):
+        PDFExtractText().run({"source": "not-valid-base64!!!"}, {})
+
+
+def test_pdf_extract_text_missing_source_raises():
+    from app.connectors.base import ConnectorError
+    from app.connectors.library import PDFExtractText
+
+    with pytest.raises(ConnectorError):
+        PDFExtractText().run({}, {})
+
+
+def test_pdf_extract_text_fetches_gmail_attachment(monkeypatch):
+    import base64
+
+    import httpx as httpx_module
+
+    from app.connectors.library import PDFExtractText
+
+    pdf_b64 = _make_blank_pdf_base64()
+    urlsafe_no_pad = base64.urlsafe_b64encode(base64.b64decode(pdf_b64)).decode().rstrip("=")
+
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"data": urlsafe_no_pad}
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
+
+        def get(self, *a, **k):
+            return FakeResponse()
+
+    monkeypatch.setenv("GMAIL_TOKEN", "fake-gmail-token")
+    monkeypatch.setattr(httpx_module, "Client", FakeClient)
+
+    result = PDFExtractText().run(
+        {"source": {"message_id": "msg1", "attachment_id": "att1"}},
+        {"_uid": "dev-user"},
+    )
+    assert result.output["text"] == ""
+
+
 def test_slack_notify_real_run_without_token_raises():
     from app.connectors.base import ConnectorError
     from app.connectors.library import SlackNotify
@@ -263,6 +427,14 @@ def test_slack_notify_real_run_posts_message(fake_slack):
 
     result = SlackNotify().run({"channel": "#finance", "text": "hi"}, {})
     assert result.output == {"ok": True, "channel": "#finance", "ts": "123.456"}
+
+
+def test_naive_parse_handles_regex_metacharacters_in_field_name():
+    from app.connectors.library import _naive_parse
+
+    # a field name containing regex metacharacters must not raise re.error
+    result = _naive_parse("due(date): 2026-08-01", {"due(date)": "string"})
+    assert result["due(date)"] == "2026-08-01"
 
 
 def test_credential_store_falls_back_to_stub_without_uid():
@@ -381,7 +553,7 @@ def test_human_approval_pauses_and_resumes(fake_slack):
         Node(id="notify", type=NodeType.connector, connector="SlackNotify",
              config={"channel": "#finance"}, depends_on=["gate"]),
     ])
-    rec = repository.create_workflow("approval-gate", spec)
+    rec = repository.create_workflow("approval-gate", spec, owner_uid="dev-user")
 
     async def go():
         ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=False)
@@ -404,7 +576,7 @@ def test_human_approval_rejection_fails_execution():
     spec = WorkflowSpec(name="approval-gate-reject", nodes=[
         Node(id="gate", type=NodeType.human_approval, config={"auto_approve": False}),
     ])
-    rec = repository.create_workflow("approval-gate-reject", spec)
+    rec = repository.create_workflow("approval-gate-reject", spec, owner_uid="dev-user")
 
     async def go():
         ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=False)

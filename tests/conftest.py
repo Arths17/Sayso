@@ -1,6 +1,6 @@
-"""Force the offline stub LLM (and disabled auth/OAuth) regardless of a local
-.env, so the suite stays deterministic and doesn't hit real
-OpenRouter/Firebase/Google."""
+"""Force the offline stub LLM, in-memory store, and disabled auth/OAuth
+regardless of a local .env, so the suite stays deterministic and doesn't hit
+real OpenRouter/Firestore/Google (including billed Firestore operations)."""
 import os
 
 import pytest
@@ -9,6 +9,8 @@ os.environ["OPENROUTER_API_KEY"] = ""
 os.environ["SAYSO_AUTH_DISABLED"] = "true"
 os.environ["GOOGLE_OAUTH_CLIENT_ID"] = ""
 os.environ["GOOGLE_OAUTH_CLIENT_SECRET"] = ""
+os.environ["FIREBASE_SERVICE_ACCOUNT_JSON"] = ""
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ""
 
 
 @pytest.fixture

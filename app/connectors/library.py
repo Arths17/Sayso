@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 import re
 from typing import Any
@@ -8,6 +9,7 @@ from typing import Any
 import httpx
 
 from app.connectors.base import Connector, ConnectorError, ConnectorResult
+from app.connectors.ssrf_guard import assert_public_url
 
 _GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me"
 _DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3/files"
@@ -15,7 +17,7 @@ _SHEETS = "https://sheets.googleapis.com/v4/spreadsheets"
 
 
 def _google_auth_header(credentials, provider: str, context: dict) -> dict:
-    uid = context.get("__uid__")
+    uid = context.get("_uid")
     if not uid:
         raise ConnectorError(f"no authenticated user in context for {provider} call")
     token = credentials.token(provider, uid=uid)
@@ -214,6 +216,7 @@ class HTTPRequest(Connector):
         url = config.get("url")
         if not url:
             raise ConnectorError("url not specified")
+        assert_public_url(url)
         with httpx.Client(timeout=30) as c:
             r = c.request(method, url, json=config.get("json"), headers=config.get("headers"))
         return ConnectorResult(
@@ -230,9 +233,32 @@ class PDFExtractText(Connector):
     name = "PDFExtractText"
 
     def run(self, config, context):
-        if not config.get("source"):
+        source = config.get("source")
+        if not source:
             raise ConnectorError("no source PDF provided")
-        return ConnectorResult(output={"text": "(real pdf extraction stub)"})
+
+        if isinstance(source, dict) and source.get("attachment_id") and source.get("message_id"):
+            data = self._fetch_gmail_attachment(context, source["message_id"], source["attachment_id"])
+        elif isinstance(source, str):
+            try:
+                data = base64.b64decode(source, validate=True)
+            except (binascii.Error, ValueError) as e:
+                raise ConnectorError(f"source is not a valid base64-encoded PDF: {e}") from e
+        else:
+            raise ConnectorError(
+                "source must be a base64-encoded PDF string or {message_id, attachment_id}"
+            )
+
+        return ConnectorResult(output={"text": _extract_pdf_text(data)})
+
+    def _fetch_gmail_attachment(self, context, message_id: str, attachment_id: str) -> bytes:
+        headers = _google_auth_header(self.credentials, "gmail", context)
+        with httpx.Client(timeout=30, headers=headers) as c:
+            r = c.get(f"{_GMAIL}/messages/{message_id}/attachments/{attachment_id}")
+            r.raise_for_status()
+            b64data = r.json()["data"]
+        padded = b64data + "=" * (-len(b64data) % 4)
+        return base64.urlsafe_b64decode(padded)
 
     def mock(self, config, context):
         return ConnectorResult(
@@ -241,6 +267,18 @@ class PDFExtractText(Connector):
                 "Due: 2026-08-01\nInvoice Number: 4491"
             }
         )
+
+
+def _extract_pdf_text(data: bytes) -> str:
+    import io
+
+    from pypdf import PdfReader
+
+    try:
+        reader = PdfReader(io.BytesIO(data))
+    except Exception as e:
+        raise ConnectorError(f"could not parse PDF: {e}") from e
+    return "\n".join(page.extract_text() or "" for page in reader.pages)
 
 
 class LLMExtractFields(Connector):
@@ -278,7 +316,7 @@ class LLMExtractFields(Connector):
 def _naive_parse(text: str, schema: dict) -> dict:
     out: dict[str, Any] = {}
     for field_name, ftype in schema.items():
-        pat = re.search(rf"{field_name}\s*[:#]?\s*([^\n]+)", text, re.IGNORECASE)
+        pat = re.search(rf"{re.escape(field_name)}\s*[:#]?\s*([^\n]+)", text, re.IGNORECASE)
         if not pat and field_name == "amount":
             pat = re.search(r"amount\s*[:#]?\s*([\d.,]+)", text, re.IGNORECASE)
         if pat:

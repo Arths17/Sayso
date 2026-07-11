@@ -48,12 +48,12 @@ async def run_execution(spec: WorkflowSpec, execution: Execution) -> Execution:
 
     context = execution.context
     context.setdefault("trigger", _trigger_output(spec, execution.dry_run))
-    context.setdefault("__vars__", spec.variables)
+    context.setdefault("_vars", spec.variables)
     for k, v in spec.variables.items():
         context.setdefault(k, v)
 
     completed = _completed_ids(execution)
-    disabled: set[str] = set(execution.context.get("__disabled__", []))
+    disabled: set[str] = set(execution.context.get("_disabled", []))
 
     for node_id in graph.execution_order():
         if node_id in completed or node_id in disabled:
@@ -72,7 +72,7 @@ async def run_execution(spec: WorkflowSpec, execution: Execution) -> Execution:
                 continue
 
         paused = await _execute_node(graph, node, execution, context, completed, disabled)
-        execution.context["__disabled__"] = list(disabled)
+        execution.context["_disabled"] = list(disabled)
         repository.save_execution(execution)
         if paused:
             return execution
@@ -227,7 +227,6 @@ async def apply_heal_and_resume(spec: WorkflowSpec, execution: Execution) -> Exe
         return execution
 
     spec.nodes = candidate_nodes
-    spec.nodes = [healed if n.id == patch.node_id else n for n in spec.nodes]
     execution.pending_heal = None
     repository.log_decision(execution.workflow_id, "healer", {"applied": patch.node_id})
     return await run_execution(spec, execution)

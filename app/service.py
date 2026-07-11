@@ -10,9 +10,9 @@ from app.schemas import (
 from app.storage import repository
 
 
-def generate(prompt: str, answers: dict[str, str] | None = None) -> GenerateResponse:
+def generate(prompt: str, owner_uid: str = "", answers: dict[str, str] | None = None) -> GenerateResponse:
     spec = planner.plan(prompt, answers)
-    record = repository.create_workflow(prompt, spec)
+    record = repository.create_workflow(prompt, spec, owner_uid=owner_uid)
     repository.log_decision(record.id, "planner", {"prompt": prompt, "reasoning": spec.reasoning})
 
     crit = critic.critique(spec)

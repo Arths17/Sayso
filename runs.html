@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SaySo — Runs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .mark svg{ width:20px; height:20px; }
+  .navlinks a.on{ opacity:1; border-bottom:1px solid var(--buckthorn); padding-bottom:4px; }
+  .detail{ border-top:1px solid rgba(255,255,255,0.12); padding: 26px var(--gutter) 40px; }
+  .detail .console{ border-top:none; padding:0; margin-top:16px; }
+</style>
+</head>
+<body>
+
+<header class="frame dark">
+  <nav class="nav">
+    <div class="mark">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="3" stroke="var(--buckthorn)" stroke-width="1.6"/><path d="M8 8L12 12L8 16" stroke="var(--moonlight)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      SAYSO
+    </div>
+    <div class="navlinks">
+      <a href="index.html">Home</a>
+      <a href="builder.html">Builder</a>
+      <a href="connectors.html">Connectors</a>
+      <a href="runs.html" class="on">Runs</a>
+    </div>
+    <a href="auth.html" class="btn btn-ghost-dark" style="border-color:var(--line-dark); padding:10px 18px;">Account</a>
+  </nav>
+
+  <div class="container" style="padding-top:28px; padding-bottom:26px;">
+    <h2 style="color:var(--moonlight); font-size:1.6rem;">Runs</h2>
+    <p class="mono" style="opacity:0.5; margin-top:8px; text-transform:none; font-size:0.82rem;">Every execution, including the retries. Click a row to see its step-by-step log.</p>
+  </div>
+</header>
+
+<main class="frame light" style="margin-top:0;">
+
+  <table class="runs-table">
+    <thead>
+      <tr><th>Workflow</th><th>Trigger</th><th>Status</th><th>Duration</th><th>Started</th></tr>
+    </thead>
+    <tbody>
+      <tr class="selected">
+        <td>Invoice intake &rarr; Drive, Sheets, Slack</td>
+        <td>gmail.new_attachment</td>
+        <td><span class="badge badge-retry"><span class="d"></span>retried once</span></td>
+        <td>6.2s</td>
+        <td>run #48 &middot; 2m ago</td>
+      </tr>
+      <tr>
+        <td>Invoice intake &rarr; Drive, Sheets, Slack</td>
+        <td>gmail.new_attachment</td>
+        <td><span class="badge badge-success"><span class="d"></span>success</span></td>
+        <td>4.1s</td>
+        <td>run #47 &middot; 1h ago</td>
+      </tr>
+      <tr>
+        <td>Customer reply drafts</td>
+        <td>gmail.new_message</td>
+        <td><span class="badge badge-success"><span class="d"></span>success</span></td>
+        <td>3.4s</td>
+        <td>run #46 &middot; 3h ago</td>
+      </tr>
+      <tr>
+        <td>Row-to-email blast</td>
+        <td>manual</td>
+        <td><span class="badge badge-error"><span class="d"></span>failed</span></td>
+        <td>1.8s</td>
+        <td>run #45 &middot; yesterday</td>
+      </tr>
+      <tr>
+        <td>Invoice intake &rarr; Drive, Sheets, Slack</td>
+        <td>gmail.new_attachment</td>
+        <td><span class="badge badge-success"><span class="d"></span>success</span></td>
+        <td>3.9s</td>
+        <td>run #44 &middot; yesterday</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="detail">
+    <div class="mono" style="font-size:0.68rem; letter-spacing:0.1em; text-transform:uppercase; opacity:0.5; margin-bottom:14px;">run #48 — detail</div>
+    <div class="console" style="background:var(--neverything); color:var(--moonlight); padding:18px 18px; border:1px solid rgba(255,255,255,0.1);">
+      <div class="line"><span class="ts">00:00</span><span class="tag-ok">triggered by new gmail attachment</span></div>
+      <div class="line"><span class="ts">00:01</span><span class="tag-ok">downloading attachment…</span></div>
+      <div class="line"><span class="ts">00:02</span><span class="tag-ok">extracting pdf text</span></div>
+      <div class="line"><span class="ts">00:03</span><span class="tag-ok">ai extraction: invoice_no=INV-2291, amount=$6,420.00, due=2026-08-01</span></div>
+      <div class="line"><span class="ts">00:03</span><span class="tag-ok">condition true (amount &gt; 5000) — notifying manager</span></div>
+      <div class="line"><span class="ts">00:04</span><span class="tag-ok">uploading pdf to drive</span></div>
+      <div class="line"><span class="ts">00:04</span><span class="tag-err">sheets api: rate limit exceeded</span></div>
+      <div class="line"><span class="ts">00:04</span><span class="tag-warn">retrying in 2s…</span></div>
+      <div class="line"><span class="ts">00:06</span><span class="tag-ok">retry succeeded — row appended</span></div>
+      <div class="line"><span class="ts">00:06</span><span class="tag-ok">sending slack notification</span></div>
+      <div class="line"><span class="ts">00:06</span><span class="tag-ok">workflow complete — 8 of 8 steps succeeded</span></div>
+    </div>
+  </div>
+
+  <footer class="foot" style="display:flex; justify-content:space-between; align-items:center; padding:22px var(--gutter); border-top:1px solid rgba(255,255,255,0.1); font-family:var(--font-mono); font-size:0.66rem; letter-spacing:0.06em; opacity:0.55; flex-wrap:wrap; gap:10px;">
+    <span>SaySo — vsHacks 2026</span>
+  </footer>
+
+</main>
+
+</body>
+</html>

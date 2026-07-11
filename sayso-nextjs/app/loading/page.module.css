@@ -1,0 +1,89 @@
+.loadWrap {
+  min-height: calc(100vh - 32px - 2 * var(--frame));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.markLg {
+  width: 88px;
+  height: 88px;
+  margin-bottom: 32px;
+}
+
+.markLg .chev {
+  animation: nudge 1.4s var(--ease) infinite;
+  transform-origin: center;
+}
+
+@keyframes nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+
+.status {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--moonlight);
+  opacity: 0.7;
+  margin-bottom: 20px;
+}
+
+.barTrack {
+  width: min(420px, 80vw);
+  height: 2px;
+  background: var(--line-dark);
+  position: relative;
+}
+
+.barFill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--buckthorn);
+  transition: width 0.15s linear;
+}
+
+.pct {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--moonlight);
+  margin-top: 16px;
+}
+
+.corner {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--moonlight);
+  opacity: 0.5;
+}
+
+.tl {
+  top: 28px;
+  left: var(--gutter);
+}
+.tr {
+  top: 28px;
+  right: var(--gutter);
+}
+.bl {
+  bottom: 28px;
+  left: var(--gutter);
+}
+.br {
+  bottom: 28px;
+  right: var(--gutter);
+}

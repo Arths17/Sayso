@@ -1,15 +1,3 @@
-"""FastAPI dependency that verifies a Firebase Auth ID token.
-
-The client (once built) signs in with Firebase Auth (Email/Password or Google)
-and sends the ID token as `Authorization: Bearer <token>` on every request.
-This never handles sign-in itself — that's a client SDK concern — it only
-verifies the token FastAPI receives.
-
-Offline/dev fallback: when no Firebase credentials are configured
-(`settings.auth_enabled` is False), verification is skipped and a fixed dev
-user is returned, so tests and local dry-runs keep working without a service
-account.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass

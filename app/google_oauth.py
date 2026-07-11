@@ -1,17 +1,3 @@
-"""Google OAuth2 (authorization code) flow for the Gmail/Drive/Sheets
-connectors — separate from Firebase Auth's "Sign in with Google", which only
-identifies the user in our own app. This flow gets user consent for Google
-Workspace API scopes so the connectors can make real calls on their behalf.
-
-Flow:
-  1. GET /oauth/google/start   (authenticated) -> redirect to Google consent
-  2. GET /oauth/google/callback?code=&state=   -> exchange code, store tokens
-  3. app.connectors.base.CredentialStore.token() calls get_access_token(uid)
-     on every real connector run, refreshing if the access token expired.
-
-Tokens are stored per-uid via app.storage.repository (Firestore in
-production, in-memory in dev/tests) — never in this module.
-"""
 from __future__ import annotations
 
 import time
@@ -54,7 +40,6 @@ def build_auth_url(state: str) -> str:
 
 
 def exchange_code(code: str) -> dict:
-    """Exchange an authorization code for tokens, return the raw token response."""
     data = {
         "client_id": settings.google_oauth_client_id,
         "client_secret": settings.google_oauth_client_secret,
@@ -101,7 +86,6 @@ def store_tokens(uid: str, token_response: dict) -> None:
 
 
 def get_access_token(uid: str) -> str:
-    """Return a valid access token for this user, refreshing if expired."""
     tokens = repository.get_google_tokens(uid)
     if not tokens:
         raise GoogleOAuthError(f"no Google credentials connected for user '{uid}'")

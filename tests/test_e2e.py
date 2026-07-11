@@ -267,6 +267,14 @@ def test_slack_notify_real_run_posts_message(fake_slack):
     assert result.output == {"ok": True, "channel": "#finance", "ts": "123.456"}
 
 
+def test_naive_parse_handles_regex_metacharacters_in_field_name():
+    from app.connectors.library import _naive_parse
+
+    # a field name containing regex metacharacters must not raise re.error
+    result = _naive_parse("due(date): 2026-08-01", {"due(date)": "string"})
+    assert result["due(date)"] == "2026-08-01"
+
+
 def test_credential_store_falls_back_to_stub_without_uid():
     from app.connectors.base import CredentialStore
     token = CredentialStore().token("gmail")

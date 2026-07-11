@@ -278,7 +278,7 @@ class LLMExtractFields(Connector):
 def _naive_parse(text: str, schema: dict) -> dict:
     out: dict[str, Any] = {}
     for field_name, ftype in schema.items():
-        pat = re.search(rf"{field_name}\s*[:#]?\s*([^\n]+)", text, re.IGNORECASE)
+        pat = re.search(rf"{re.escape(field_name)}\s*[:#]?\s*([^\n]+)", text, re.IGNORECASE)
         if not pat and field_name == "amount":
             pat = re.search(r"amount\s*[:#]?\s*([\d.,]+)", text, re.IGNORECASE)
         if pat:

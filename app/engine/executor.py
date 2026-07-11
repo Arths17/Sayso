@@ -228,7 +228,6 @@ async def apply_heal_and_resume(spec: WorkflowSpec, execution: Execution) -> Exe
         return execution
 
     spec.nodes = candidate_nodes
-    spec.nodes = [healed if n.id == patch.node_id else n for n in spec.nodes]
     execution.pending_heal = None
     repository.log_decision(execution.workflow_id, "healer", {"applied": patch.node_id})
     return await run_execution(spec, execution)

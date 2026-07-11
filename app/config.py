@@ -47,6 +47,9 @@ class Settings:
         "FIREBASE_SERVICE_ACCOUNT_JSON"
     )
     firebase_project_id: str | None = os.getenv("FIREBASE_PROJECT_ID")
+    # public client identifier (not a secret) — used only by
+    # scripts/mint_test_token.py for local ID-token minting
+    firebase_web_api_key: str | None = os.getenv("FIREBASE_WEB_API_KEY")
 
     # --- Auth ---
     # Verifies Firebase Auth ID tokens on every /workflows request. Off by

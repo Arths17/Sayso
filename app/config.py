@@ -32,7 +32,11 @@ class Settings:
         "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
     )
     # Confirm the exact slug on openrouter.ai/models; this is the current default.
-    llm_model: str = os.getenv("SAYSO_LLM_MODEL", "anthropic/claude-sonnet-4.5")
+    # Free OpenRouter model (override with SAYSO_LLM_MODEL). For production,
+    # swap to e.g. anthropic/claude-sonnet-4.5.
+    llm_model: str = os.getenv(
+        "SAYSO_LLM_MODEL", "nvidia/nemotron-3-super-120b-a12b:free"
+    )
     llm_max_retries: int = int(os.getenv("SAYSO_LLM_MAX_RETRIES", "2"))
 
     # --- Firebase / Firestore ---

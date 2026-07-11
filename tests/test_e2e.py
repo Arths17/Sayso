@@ -96,6 +96,31 @@ def test_self_heal_end_to_end():
     asyncio.run(go())
 
 
+def test_heal_patch_rejected_by_validator():
+    from app.schemas import HealPatch
+
+    spec = WorkflowSpec(name="broken2", nodes=[
+        Node(id="notify", type=NodeType.connector, connector="SlackNotify", config={}),
+    ])
+    rec = repository.create_workflow("broken2", spec)
+
+    async def go():
+        ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=False)
+        ex = await executor.run_execution(rec.spec, ex)
+        assert ex.state == "awaiting_heal_approval"
+        # simulate a bad patch (e.g. healer hallucinated a connector name)
+        ex.pending_heal = HealPatch(
+            node_id="notify", error="boom",
+            patch={"connector": "NopeConnector"},
+            diff_explanation="switch connector",
+        )
+        ex = await executor.apply_heal_and_resume(rec.spec, ex)
+        assert ex.state == "failed"
+        assert ex.pending_heal is None
+
+    asyncio.run(go())
+
+
 def test_validator_rejects_unknown_connector():
     from app.agents import validator
     spec = WorkflowSpec(name="x", nodes=[
@@ -104,6 +129,86 @@ def test_validator_rejects_unknown_connector():
     result = validator.validate(spec)
     assert not result.passed
     assert any("unknown connector" in e.reason for e in result.errors)
+
+
+def test_retry_succeeds_after_transient_failure():
+    from app.connectors import registry
+    from app.connectors.base import Connector, ConnectorResult
+    from app.schemas import RetryPolicy
+
+    class FlakyConnector(Connector):
+        name = "FlakyConnector"
+        attempts_made = 0
+
+        def run(self, config, context):
+            FlakyConnector.attempts_made += 1
+            if FlakyConnector.attempts_made < 2:
+                return ConnectorResult(status="failed", error="transient blip")
+            return ConnectorResult(output={"ok": True})
+
+        def mock(self, config, context):
+            return ConnectorResult(output={"ok": True})
+
+    registry._CONNECTOR_CLASSES["FlakyConnector"] = FlakyConnector
+    try:
+        spec = WorkflowSpec(name="flaky", nodes=[
+            Node(id="flaky", type=NodeType.connector, connector="FlakyConnector",
+                 config={}, retry_policy=RetryPolicy(max_attempts=3, backoff_seconds=0.01)),
+        ])
+        rec = repository.create_workflow("flaky", spec)
+
+        async def go():
+            ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=False)
+            return await executor.run_execution(rec.spec, ex)
+
+        ex = asyncio.run(go())
+        assert ex.state == "completed"
+        assert FlakyConnector.attempts_made == 2
+        log = next(l for l in ex.logs if l.node_id == "flaky")
+        assert log.status == "succeeded"
+        assert log.attempt == 2
+    finally:
+        del registry._CONNECTOR_CLASSES["FlakyConnector"]
+
+
+def test_human_approval_pauses_and_resumes():
+    spec = WorkflowSpec(name="approval-gate", nodes=[
+        Node(id="gate", type=NodeType.human_approval, config={"auto_approve": False}),
+        Node(id="notify", type=NodeType.connector, connector="SlackNotify",
+             config={"channel": "#finance"}, depends_on=["gate"]),
+    ])
+    rec = repository.create_workflow("approval-gate", spec)
+
+    async def go():
+        ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=False)
+        return await executor.run_execution(rec.spec, ex)
+
+    ex = asyncio.run(go())
+    assert ex.state == "awaiting_approval"
+    assert ex.pending_approval_node_id == "gate"
+
+    r = client.post(f"/workflows/{rec.id}/executions/{ex.id}/approve", json={"approve": True})
+    body = r.json()
+    assert body["state"] == "completed"
+
+    resumed = repository.get_execution(rec.id, ex.id)
+    gate_log = next(l for l in resumed.logs if l.node_id == "gate" and l.status == "succeeded")
+    assert gate_log.output == {"approved": True, "auto": False}
+
+
+def test_human_approval_rejection_fails_execution():
+    spec = WorkflowSpec(name="approval-gate-reject", nodes=[
+        Node(id="gate", type=NodeType.human_approval, config={"auto_approve": False}),
+    ])
+    rec = repository.create_workflow("approval-gate-reject", spec)
+
+    async def go():
+        ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=False)
+        return await executor.run_execution(rec.spec, ex)
+
+    ex = asyncio.run(go())
+    r = client.post(f"/workflows/{rec.id}/executions/{ex.id}/approve", json={"approve": False})
+    assert r.json()["state"] == "failed"
 
 
 def test_for_each_loop_runs():

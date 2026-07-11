@@ -121,6 +121,49 @@ def test_heal_patch_rejected_by_validator():
     asyncio.run(go())
 
 
+def test_local_model_unavailable_without_torch():
+    from app.llm import local_model
+    with pytest.raises(local_model.LocalModelUnavailable):
+        local_model.generate_json(system="s", user="u")
+
+
+def test_openrouter_failure_falls_back_to_local_model(monkeypatch):
+    from app.llm import client, local_model
+    from pydantic import BaseModel
+
+    class Dummy(BaseModel):
+        ok: bool
+
+    monkeypatch.setattr(client.settings, "openrouter_api_key", "fake-key")
+
+    def boom(system, user):
+        raise __import__("httpx").ConnectError("network down")
+
+    monkeypatch.setattr(client, "_call_openrouter", boom)
+    monkeypatch.setattr(local_model, "generate_json", lambda system, user: '{"ok": true}')
+
+    result = client.complete_json(task="t", system="s", user="u", schema=Dummy)
+    assert result.ok is True
+
+
+def test_openrouter_failure_raises_when_local_model_also_unavailable(monkeypatch):
+    from app.llm import client
+    from pydantic import BaseModel
+
+    class Dummy(BaseModel):
+        ok: bool
+
+    monkeypatch.setattr(client.settings, "openrouter_api_key", "fake-key")
+
+    def boom(system, user):
+        raise __import__("httpx").ConnectError("network down")
+
+    monkeypatch.setattr(client, "_call_openrouter", boom)
+
+    with pytest.raises(client.LLMError):
+        client.complete_json(task="t", system="s", user="u", schema=Dummy)
+
+
 def test_validator_rejects_unknown_connector():
     from app.agents import validator
     spec = WorkflowSpec(name="x", nodes=[
@@ -169,6 +212,54 @@ def test_retry_succeeds_after_transient_failure():
         assert log.attempt == 2
     finally:
         del registry._CONNECTOR_CLASSES["FlakyConnector"]
+
+
+def test_force_mock_connectors_overrides_real_run():
+    from app.config import settings
+
+    spec = WorkflowSpec(name="forced-mock", nodes=[
+        Node(id="notify", type=NodeType.connector, connector="SlackNotify", config={}),
+    ])
+    rec = repository.create_workflow("forced-mock", spec)
+    settings.force_mock_connectors = True
+    try:
+        async def go():
+            ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=False)
+            return await executor.run_execution(rec.spec, ex)
+
+        ex = asyncio.run(go())
+        # without the override this config (missing "channel") would fail and
+        # trigger self-healing; the override makes even a real run use mock()
+        assert ex.state == "completed"
+    finally:
+        settings.force_mock_connectors = False
+
+
+def test_for_each_loop_body_supports_conditional():
+    spec = WorkflowSpec(name="loop-cond", variables={"rows": [{"amount": 10}, {"amount": 999}]}, nodes=[
+        Node(id="loop", type=NodeType.for_each, iterate_over="{{ rows }}",
+             loop_body=["check", "notify_big"]),
+        Node(id="check", type=NodeType.conditional, condition="{{ item.amount }} > 100",
+             true_branch=["notify_big"], false_branch=[]),
+        Node(id="notify_big", type=NodeType.connector, connector="SlackNotify",
+             config={"channel": "#alerts", "text": "big row"}),
+    ])
+    rec = repository.create_workflow("loop-cond", spec)
+
+    async def go():
+        ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=True)
+        return await executor.run_execution(rec.spec, ex)
+
+    ex = asyncio.run(go())
+    assert ex.state == "completed"
+    loop_log = next(l for l in ex.logs if l.node_id == "loop")
+    iterations = loop_log.output["iterations"]
+    # first item (amount=10) takes false branch -> notify_big skipped
+    assert iterations[0]["check"]["taken"] is False
+    assert iterations[1]["notify_big"] == {"skipped": "untaken branch"}
+    # second item (amount=999) takes true branch -> notify_big actually runs
+    assert iterations[2]["check"]["taken"] is True
+    assert iterations[3]["notify_big"] != {"skipped": "untaken branch"}
 
 
 def test_human_approval_pauses_and_resumes():

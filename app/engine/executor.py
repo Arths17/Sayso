@@ -20,6 +20,7 @@ import asyncio
 
 from app.agents import healer, validator
 from app.compiler.graph_builder import CompiledGraph, compile_spec
+from app.config import settings
 from app.connectors import registry
 from app.connectors.base import MockConnector
 from app.engine.context import eval_condition, resolve
@@ -48,7 +49,7 @@ def _completed_ids(execution: Execution) -> set[str]:
 
 async def _run_connector(node: Node, config: dict, context: dict, dry_run: bool):
     connector = registry.resolve(node.connector)
-    if dry_run:
+    if dry_run or settings.force_mock_connectors:
         connector = MockConnector(connector)
         result = await asyncio.to_thread(connector.execute, config, context)
     else:
@@ -151,9 +152,13 @@ async def _execute_node(
         outputs = []
         for idx, item in enumerate(items):
             loop_ctx = {**context, "item": item, "index": idx}
+            iter_disabled: set[str] = set()
             for body_id in node.loop_body:
+                if body_id in iter_disabled:
+                    outputs.append({body_id: {"skipped": "untaken branch"}})
+                    continue
                 body = graph.nodes[body_id]
-                res = await _run_body_node(body, loop_ctx, execution.dry_run)
+                res = await _run_body_node(body, loop_ctx, execution.dry_run, iter_disabled)
                 outputs.append({body_id: res})
         _log(execution, node.id, status=NodeStatus.succeeded, start_time=start,
              end_time=now_iso(), input={"count": len(items)}, output={"iterations": outputs},
@@ -200,9 +205,19 @@ async def _execute_node(
     return True
 
 
-async def _run_body_node(node: Node, context: dict, dry_run: bool):
+async def _run_body_node(node: Node, context: dict, dry_run: bool, iter_disabled: set[str]):
+    """Execute one node inside a for_each iteration. Conditionals disable their
+    untaken branch for the rest of this iteration; approvals auto-approve
+    (pausing mid-loop for a human is out of scope for this MVP)."""
+    if node.type == NodeType.conditional:
+        taken = eval_condition(node.condition or "false", context)
+        not_taken = node.false_branch if taken else node.true_branch
+        iter_disabled.update(not_taken)
+        return {"taken": taken}
+    if node.type == NodeType.human_approval:
+        return {"approved": True, "auto": True}
     if node.type != NodeType.connector:
-        return {"skipped": "non-connector in loop body"}
+        return {"skipped": f"unsupported node type in loop body: {node.type}"}
     resolved = resolve(node.config, context)
     result = await _run_connector(node, resolved, context, dry_run)
     return result.output
@@ -212,7 +227,7 @@ def _trigger_output(spec: WorkflowSpec, dry_run: bool) -> dict:
     trig = spec.trigger
     if trig.type != "manual" and registry.has_connector(trig.type):
         connector = registry.resolve(trig.type)
-        if dry_run:
+        if dry_run or settings.force_mock_connectors:
             connector = MockConnector(connector)
             return connector.execute(trig.config, {}).output or {}
         return connector.execute(trig.config, {}, False).output or {}

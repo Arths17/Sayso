@@ -1,0 +1,7 @@
+# Optional: local PyTorch fallback model (app/llm/local_model.py).
+# Not installed by default — heavy (GBs) and only makes sense on a persistent
+# server, never in the Vercel serverless deployment. Install this file only
+# on whatever host runs the real (non-stub) LLM path and wants OpenRouter
+# transport failures to fail over to a local model instead of erroring out.
+torch>=2.2
+transformers>=4.42

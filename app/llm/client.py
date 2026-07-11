@@ -7,6 +7,9 @@ never OpenRouter directly — so the model/provider is swappable in one file.
   response_format=json_object.
 - Stub mode (no OPENROUTER_API_KEY): deterministic offline responses, so the
   whole pipeline runs in tests/CI without keys.
+- Local fallback (real mode only): if OpenRouter is unreachable at the
+  transport level after retries, fail over to a small local PyTorch model
+  (app/llm/local_model.py) rather than erroring out immediately.
 
 Structured output contract: callers pass a Pydantic model; we validate the
 returned JSON against it and, on failure, retry up to `llm_max_retries` times
@@ -96,5 +99,22 @@ def complete_json(
                 "Return ONLY valid JSON matching the required schema."
             )
         except httpx.HTTPError as e:  # pragma: no cover - network
-            raise LLMError(f"OpenRouter request failed: {e}") from e
+            return _fallback_or_raise(system, prompt, schema, e)
     raise LLMError(f"LLM output failed validation after retries: {last_err}")
+
+
+def _fallback_or_raise(system: str, user: str, schema: Type[T], upstream_err: Exception) -> T:
+    """OpenRouter is unreachable — try the local PyTorch model before giving up."""
+    from app.llm import local_model
+
+    try:
+        raw = local_model.generate_json(system=system, user=user)
+    except local_model.LocalModelUnavailable:
+        raise LLMError(f"OpenRouter request failed: {upstream_err}") from upstream_err
+    try:
+        data = json.loads(raw)
+        return schema.model_validate(data)
+    except (json.JSONDecodeError, ValidationError) as e:
+        raise LLMError(
+            f"OpenRouter request failed ({upstream_err}); local fallback output also invalid: {e}"
+        ) from upstream_err

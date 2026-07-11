@@ -88,7 +88,7 @@ def test_revert():
     assert rev["new_version"] != v0
 
 
-def test_self_heal_end_to_end():
+def test_self_heal_end_to_end(fake_slack):
     spec = WorkflowSpec(name="broken", nodes=[
         Node(id="notify", type=NodeType.connector, connector="SlackNotify", config={}),
     ])
@@ -252,6 +252,21 @@ def test_google_oauth_callback_rejects_invalid_state():
     assert r.status_code == 400
 
 
+def test_slack_notify_real_run_without_token_raises():
+    from app.connectors.base import ConnectorError
+    from app.connectors.library import SlackNotify
+
+    with pytest.raises(ConnectorError):
+        SlackNotify().run({"channel": "#finance", "text": "hi"}, {})
+
+
+def test_slack_notify_real_run_posts_message(fake_slack):
+    from app.connectors.library import SlackNotify
+
+    result = SlackNotify().run({"channel": "#finance", "text": "hi"}, {})
+    assert result.output == {"ok": True, "channel": "#finance", "ts": "123.456"}
+
+
 def test_credential_store_falls_back_to_stub_without_uid():
     from app.connectors.base import CredentialStore
     token = CredentialStore().token("gmail")
@@ -362,7 +377,7 @@ def test_for_each_loop_body_supports_conditional():
     assert iterations[3]["notify_big"] != {"skipped": "untaken branch"}
 
 
-def test_human_approval_pauses_and_resumes():
+def test_human_approval_pauses_and_resumes(fake_slack):
     spec = WorkflowSpec(name="approval-gate", nodes=[
         Node(id="gate", type=NodeType.human_approval, config={"auto_approve": False}),
         Node(id="notify", type=NodeType.connector, connector="SlackNotify",

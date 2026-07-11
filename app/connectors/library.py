@@ -185,7 +185,20 @@ class SlackNotify(Connector):
         channel = config.get("channel")
         if not channel or "{{" in str(channel):
             raise ConnectorError("no Slack channel specified")
-        return ConnectorResult(output={"ok": True, "channel": channel})
+        token = self.credentials.token("slack")
+        if token.startswith("stub-token-"):
+            raise ConnectorError("Slack not configured — set SLACK_TOKEN to a bot token (xoxb-...)")
+        with httpx.Client(timeout=30) as c:
+            r = c.post(
+                "https://slack.com/api/chat.postMessage",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"channel": channel, "text": config.get("text", "")},
+            )
+            r.raise_for_status()
+            data = r.json()
+        if not data.get("ok"):
+            raise ConnectorError(f"Slack API error: {data.get('error')}")
+        return ConnectorResult(output={"ok": True, "channel": channel, "ts": data.get("ts")})
 
     def mock(self, config, context):
         return ConnectorResult(

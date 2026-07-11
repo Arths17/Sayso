@@ -56,6 +56,13 @@ class Settings:
     )
     firebase_project_id: str | None = os.getenv("FIREBASE_PROJECT_ID")
 
+    # --- Auth ---
+    # Verifies Firebase Auth ID tokens on every /workflows request. Off by
+    # default when no Firebase credentials are configured, so tests/local dev
+    # keep working without a service account; explicitly set
+    # SAYSO_AUTH_DISABLED=false once credentials + a real client are in place.
+    _auth_disabled_override: str | None = os.getenv("SAYSO_AUTH_DISABLED")
+
     # --- Connectors ---
     # Manual override: when true, every connector returns mock data even on a
     # real (non-dry-run) execution. Off by default so /run behaves like a
@@ -71,6 +78,12 @@ class Settings:
         return bool(
             self.firebase_credentials_path or self.firebase_service_account_json
         )
+
+    @property
+    def auth_enabled(self) -> bool:
+        if self._auth_disabled_override is not None:
+            return not _bool("SAYSO_AUTH_DISABLED", False)
+        return self.use_firestore
 
 
 @lru_cache

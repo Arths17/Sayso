@@ -257,18 +257,49 @@ def test_google_oauth_start_returns_auth_url(monkeypatch):
 
 
 def test_google_oauth_callback_stores_tokens(monkeypatch):
-    import base64
-
     from app import google_oauth
 
     monkeypatch.setattr(
         google_oauth, "exchange_code",
         lambda code: {"access_token": "tok", "refresh_token": "refresh", "expires_in": 3600},
     )
-    state = base64.urlsafe_b64encode(b"dev-user").decode()
+    state = google_oauth.sign_state("dev-user")
     r = client.get("/oauth/google/callback", params={"code": "abc", "state": state})
     assert r.status_code == 200
     assert google_oauth.is_connected("dev-user")
+
+
+def test_google_oauth_state_roundtrip():
+    from app import google_oauth
+
+    state = google_oauth.sign_state("some-uid")
+    assert google_oauth.verify_state(state) == "some-uid"
+
+
+def test_google_oauth_state_rejects_tampering():
+    from app import google_oauth
+
+    state = google_oauth.sign_state("some-uid")
+    payload_b64, sig = state.split(".", 1)
+    forged = google_oauth.base64.urlsafe_b64encode(b"someone-else:9999999999").decode().rstrip("=")
+    tampered = f"{forged}.{sig}"
+    with pytest.raises(google_oauth.GoogleOAuthError):
+        google_oauth.verify_state(tampered)
+
+
+def test_google_oauth_state_rejects_expired(monkeypatch):
+    import time as time_module
+
+    from app import google_oauth
+
+    state = google_oauth.sign_state("some-uid")
+    real_time = time_module.time()
+    monkeypatch.setattr(
+        google_oauth.time, "time",
+        lambda: real_time + google_oauth._STATE_TTL_SECONDS + 60,
+    )
+    with pytest.raises(google_oauth.GoogleOAuthError):
+        google_oauth.verify_state(state)
 
 
 def test_google_oauth_callback_rejects_invalid_state():

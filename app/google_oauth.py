@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import time
 import urllib.parse
 
@@ -11,6 +14,7 @@ from app.utils import now_iso
 
 _AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 _TOKEN_URL = "https://oauth2.googleapis.com/token"
+_STATE_TTL_SECONDS = 600
 
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
@@ -22,6 +26,41 @@ SCOPES = [
 
 class GoogleOAuthError(RuntimeError):
     pass
+
+
+def _state_secret() -> bytes:
+    return (settings.google_oauth_client_secret or "").encode()
+
+
+def sign_state(uid: str) -> str:
+    """HMAC-sign uid + timestamp so /oauth/google/callback can trust the uid
+    it's given without a Bearer token — prevents an attacker from forging a
+    state value to attach their own Google tokens to someone else's uid."""
+    payload_b64 = base64.urlsafe_b64encode(f"{uid}:{int(time.time())}".encode()).decode().rstrip("=")
+    sig = hmac.new(_state_secret(), payload_b64.encode(), hashlib.sha256).hexdigest()
+    return f"{payload_b64}.{sig}"
+
+
+def verify_state(state: str) -> str:
+    try:
+        payload_b64, sig = state.split(".", 1)
+    except ValueError as e:
+        raise GoogleOAuthError("invalid state format") from e
+
+    expected_sig = hmac.new(_state_secret(), payload_b64.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, expected_sig):
+        raise GoogleOAuthError("state signature mismatch")
+
+    try:
+        padded = payload_b64 + "=" * (-len(payload_b64) % 4)
+        uid, ts = base64.urlsafe_b64decode(padded).decode().rsplit(":", 1)
+        ts = int(ts)
+    except Exception as e:
+        raise GoogleOAuthError("invalid state payload") from e
+
+    if time.time() - ts > _STATE_TTL_SECONDS:
+        raise GoogleOAuthError("state expired")
+    return uid
 
 
 def build_auth_url(state: str) -> str:

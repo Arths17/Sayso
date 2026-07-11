@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
@@ -48,7 +47,7 @@ def health():
 async def google_oauth_start(user=Depends(get_current_user)):
     if not google_oauth.settings.google_oauth_enabled:
         raise HTTPException(400, "Google OAuth not configured (GOOGLE_OAUTH_CLIENT_ID/SECRET)")
-    state = base64.urlsafe_b64encode(user.uid.encode()).decode()
+    state = google_oauth.sign_state(user.uid)
     return {"auth_url": google_oauth.build_auth_url(state)}
 
 
@@ -60,9 +59,9 @@ async def google_oauth_status(user=Depends(get_current_user)):
 @app.get("/oauth/google/callback")
 async def google_oauth_callback(code: str, state: str):
     try:
-        uid = base64.urlsafe_b64decode(state.encode()).decode()
-    except Exception as e:
-        raise HTTPException(400, "invalid state") from e
+        uid = google_oauth.verify_state(state)
+    except google_oauth.GoogleOAuthError as e:
+        raise HTTPException(400, str(e)) from e
     try:
         token_response = google_oauth.exchange_code(code)
         google_oauth.store_tokens(uid, token_response)

@@ -7,7 +7,6 @@ from app.main import app
 
 try:
     from mangum import Mangum
-
     handler = Mangum(app)
-except Exception:
+except:
     handler = None

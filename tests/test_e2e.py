@@ -117,7 +117,6 @@ def test_heal_patch_rejected_by_validator():
         ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=False)
         ex = await executor.run_execution(rec.spec, ex)
         assert ex.state == "awaiting_heal_approval"
-        # simulate a bad patch (e.g. healer hallucinated a connector name)
         ex.pending_heal = HealPatch(
             node_id="notify", error="boom",
             patch={"connector": "NopeConnector"},
@@ -131,7 +130,6 @@ def test_heal_patch_rejected_by_validator():
 
 
 def test_workflows_accessible_without_token_when_auth_disabled():
-    # SAYSO_AUTH_DISABLED=true is set in conftest.py -> no credentials configured
     r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
     assert r.status_code == 200
 

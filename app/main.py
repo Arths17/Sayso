@@ -23,9 +23,6 @@ from app.schemas import (
 from app.storage import repository, versions
 
 app = FastAPI(title="Sayso", version="0.1.0")
-# every /workflows route requires a verified Firebase Auth ID token (see
-# app/auth.py) — bypassed automatically when no Firebase credentials are
-# configured, so local dev/tests need no extra setup.
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
@@ -36,9 +33,6 @@ def health():
 
 @app.get("/oauth/google/start")
 async def google_oauth_start(user=Depends(get_current_user)):
-    """Returns the Google consent URL for the caller to navigate the browser
-    to. Can't redirect directly here since the frontend must call this with
-    its Bearer token attached — a plain browser navigation couldn't."""
     if not google_oauth.settings.google_oauth_enabled:
         raise HTTPException(400, "Google OAuth not configured (GOOGLE_OAUTH_CLIENT_ID/SECRET)")
     state = base64.urlsafe_b64encode(user.uid.encode()).decode()
@@ -52,8 +46,6 @@ async def google_oauth_status(user=Depends(get_current_user)):
 
 @app.get("/oauth/google/callback")
 async def google_oauth_callback(code: str, state: str):
-    """Hit by Google's redirect after consent — no Bearer token available,
-    so the uid travels in `state` (set by /oauth/google/start)."""
     try:
         uid = base64.urlsafe_b64decode(state.encode()).decode()
     except Exception as e:

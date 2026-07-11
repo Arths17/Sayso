@@ -1,4 +1,3 @@
-"""LLM client for OpenRouter with local fallback."""
 from __future__ import annotations
 
 import json

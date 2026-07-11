@@ -1,9 +1,3 @@
-"""Single shared firebase_admin App instance.
-
-Both Firestore storage (app/storage/firestore_client.py) and Auth token
-verification (app/auth.py) need one initialized App — this is the one place
-that happens, so credentials are configured once.
-"""
 from __future__ import annotations
 
 import json

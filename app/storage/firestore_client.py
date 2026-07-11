@@ -35,7 +35,6 @@ class Store(ABC):
     @abstractmethod
     def list_decisions(self, wid: str) -> list[dict[str, Any]]: ...
 
-    # --- per-user Google OAuth tokens (refresh_token, access_token, expiry) ---
     @abstractmethod
     def set_google_tokens(self, uid: str, data: dict[str, Any]) -> None: ...
     @abstractmethod

@@ -33,9 +33,6 @@ class Settings:
         "SAYSO_LOCAL_FALLBACK_MODEL", "Qwen/Qwen2.5-0.5B-Instruct"
     )
 
-    # --- Google OAuth (Gmail/Drive/Sheets connectors) ---
-    # Separate from Firebase Auth's "Sign in with Google" — this is the OAuth
-    # client used to get user consent for Gmail/Drive/Sheets API scopes.
     google_oauth_client_id: str | None = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
     google_oauth_client_secret: str | None = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
     google_oauth_redirect_uri: str = os.getenv(
@@ -48,17 +45,8 @@ class Settings:
     )
     firebase_project_id: str | None = os.getenv("FIREBASE_PROJECT_ID")
 
-    # --- Auth ---
-    # Verifies Firebase Auth ID tokens on every /workflows request. Off by
-    # default when no Firebase credentials are configured, so tests/local dev
-    # keep working without a service account; explicitly set
-    # SAYSO_AUTH_DISABLED=false once credentials + a real client are in place.
     _auth_disabled_override: str | None = os.getenv("SAYSO_AUTH_DISABLED")
 
-    # --- Connectors ---
-    # Manual override: when true, every connector returns mock data even on a
-    # real (non-dry-run) execution. Off by default so /run behaves like a
-    # real run; set this to force-mock in environments without live credentials.
     force_mock_connectors: bool = _bool("SAYSO_FORCE_MOCK_CONNECTORS", False)
 
     @property

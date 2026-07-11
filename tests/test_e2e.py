@@ -158,8 +158,9 @@ def test_auth_rejects_invalid_token_when_enabled(monkeypatch):
     assert r.status_code == 401
 
 
-def test_local_model_unavailable_without_torch():
+def test_local_model_unavailable_without_torch(monkeypatch):
     from app.llm import local_model
+    monkeypatch.setattr(local_model.settings, "local_fallback_enabled", False)
     with pytest.raises(local_model.LocalModelUnavailable):
         local_model.generate_json(system="s", user="u")
 
@@ -184,7 +185,7 @@ def test_openrouter_failure_falls_back_to_local_model(monkeypatch):
 
 
 def test_openrouter_failure_raises_when_local_model_also_unavailable(monkeypatch):
-    from app.llm import client
+    from app.llm import client, local_model
     from pydantic import BaseModel
 
     class Dummy(BaseModel):
@@ -196,6 +197,7 @@ def test_openrouter_failure_raises_when_local_model_also_unavailable(monkeypatch
         raise __import__("httpx").ConnectError("network down")
 
     monkeypatch.setattr(client, "_call_openrouter", boom)
+    monkeypatch.setattr(local_model, "generate_json", lambda s, u: (_ for _ in ()).throw(local_model.LocalModelUnavailable("disabled")))
 
     with pytest.raises(client.LLMError):
         client.complete_json(task="t", system="s", user="u", schema=Dummy)

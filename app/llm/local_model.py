@@ -1,15 +1,4 @@
-"""Local PyTorch fallback LLM.
-
-Only used when OpenRouter itself fails at the transport level (network error,
-or a non-2xx response after `client.py`'s retry loop is exhausted) — never as
-a general replacement for OpenRouter, and never on the offline stub path.
-
-Deliberately not a dependency of the base install: torch + transformers are
-GBs and only make sense on a persistent server, never the Vercel serverless
-deployment described in CLAUDE.md. See requirements-local-llm.txt. If those
-packages (or the model weights) aren't available, `generate_json` raises
-LocalModelUnavailable and the caller should surface the original error.
-"""
+"""Local PyTorch fallback LLM."""
 from __future__ import annotations
 
 import re
@@ -25,7 +14,7 @@ class LocalModelUnavailable(RuntimeError):
 @lru_cache
 def _load():
     try:
-        import torch  # noqa: F401
+        import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
     except ImportError as e:
         raise LocalModelUnavailable(
@@ -35,7 +24,7 @@ def _load():
     try:
         tokenizer = AutoTokenizer.from_pretrained(settings.local_fallback_model)
         model = AutoModelForCausalLM.from_pretrained(settings.local_fallback_model)
-    except Exception as e:  # noqa: BLE001 - any download/load failure
+    except Exception as e:
         raise LocalModelUnavailable(f"failed to load '{settings.local_fallback_model}': {e}") from e
     model.eval()
     return tokenizer, model
@@ -49,10 +38,6 @@ def _extract_json(text: str) -> str:
 
 
 def generate_json(system: str, user: str, max_new_tokens: int = 512) -> str:
-    """Best-effort local generation of a JSON string. Raises
-    LocalModelUnavailable if the dependency stack, model, or output isn't
-    usable — callers should treat that as "no fallback available", not a
-    silent failure."""
     if not settings.local_fallback_enabled:
         raise LocalModelUnavailable("local fallback disabled via config")
 

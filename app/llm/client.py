@@ -1,20 +1,4 @@
-"""The ONE place the app talks to an LLM.
-
-Every agent (planner, critic, healer, explainer) calls `complete_json()` here —
-never OpenRouter directly — so the model/provider is swappable in one file.
-
-- Real mode: OpenRouter OpenAI-compatible chat/completions with
-  response_format=json_object.
-- Stub mode (no OPENROUTER_API_KEY): deterministic offline responses, so the
-  whole pipeline runs in tests/CI without keys.
-- Local fallback (real mode only): if OpenRouter is unreachable at the
-  transport level after retries, fail over to a small local PyTorch model
-  (app/llm/local_model.py) rather than erroring out immediately.
-
-Structured output contract: callers pass a Pydantic model; we validate the
-returned JSON against it and, on failure, retry up to `llm_max_retries` times
-feeding the validation error back to the model.
-"""
+"""LLM client for OpenRouter with local fallback."""
 from __future__ import annotations
 
 import json
@@ -49,8 +33,6 @@ def _call_openrouter(system: str, user: str) -> str:
             {"role": "user", "content": user},
         ],
     }
-    # Free models are frequently rate-limited (429); back off and retry a few
-    # times before surfacing the error.
     with httpx.Client(timeout=60) as client:
         for attempt in range(4):
             resp = client.post(
@@ -63,8 +45,8 @@ def _call_openrouter(system: str, user: str) -> str:
                 continue
             resp.raise_for_status()
             return resp.json()["choices"][0]["message"]["content"]
-    resp.raise_for_status()  # pragma: no cover
-    return resp.json()["choices"][0]["message"]["content"]  # pragma: no cover
+    resp.raise_for_status()
+    return resp.json()["choices"][0]["message"]["content"]
 
 
 def complete_json(
@@ -92,8 +74,7 @@ def complete_json(
                 f"{user}\n\nYour previous response was invalid: {e}\n"
                 "Return ONLY valid JSON matching the required schema."
             )
-        except httpx.HTTPError as e:  # pragma: no cover - network
-            # Try local model fallback before giving up
+        except httpx.HTTPError as e:
             try:
                 from app.llm import local_model
                 content = local_model.generate_json(system, user)

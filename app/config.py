@@ -28,9 +28,6 @@ class Settings:
     )
     llm_max_retries: int = int(os.getenv("SAYSO_LLM_MAX_RETRIES", "2"))
 
-    # --- Local PyTorch fallback (used only when OpenRouter itself is
-    # unreachable — network error / non-2xx after retries). Requires
-    # requirements-local-llm.txt; silently unavailable otherwise. ---
     local_fallback_enabled: bool = _bool("SAYSO_LOCAL_FALLBACK_ENABLED", True)
     local_fallback_model: str = os.getenv(
         "SAYSO_LOCAL_FALLBACK_MODEL", "Qwen/Qwen2.5-0.5B-Instruct"

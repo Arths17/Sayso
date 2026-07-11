@@ -1,8 +1,8 @@
-# Sayso — AI Workflow Builder
+# Sayso
 
 Turn natural language into executable automation workflows.
 
-Sayso is an AI-powered workflow engine that takes a user's prompt, converts it into a structured workflow, validates it, compiles it into a directed graph, and executes it through a connector system. This repository contains the **backend only**.
+Sayso is an AI-powered workflow engine that takes a user's prompt, converts it into a structured workflow, validates it, compiles it into a directed graph, and executes it through a connector system.
 
 The backend exposes a REST API that returns a complete `WorkflowSpec` JSON object, making it easy for a frontend (for example, React Flow) to visualize workflows without needing any additional backend logic. Execution history, workflow versions, and status updates are all available through the API as well.
 

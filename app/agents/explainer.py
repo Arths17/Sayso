@@ -1,9 +1,3 @@
-"""Explainability layer.
-
-Given a node id + the workflow's execution log, produce a one-sentence plain
-English explanation of why the node exists / why the planner ordered it that
-way. Reuses the planner's hidden `reasoning` trace where available.
-"""
 from __future__ import annotations
 
 from pydantic import BaseModel

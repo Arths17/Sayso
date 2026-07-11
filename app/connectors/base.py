@@ -1,10 +1,3 @@
-"""Connector base class + credential stubbing.
-
-The execution engine NEVER imports a concrete connector — it resolves by name
-from the registry. Every connector implements both a real `run()` and a
-`mock()` returning realistic fake data (used by dry-run and the MockConnector
-wrapper), so the two code paths stay interface-identical.
-"""
 from __future__ import annotations
 
 import os
@@ -22,9 +15,6 @@ class ConnectorResult:
 
 
 class CredentialStore:
-    """Stub OAuth handling — real flows are out of scope for the MVP.
-    Tokens come from env vars keyed by provider name."""
-
     def token(self, provider: str) -> str:
         return os.getenv(f"{provider.upper()}_TOKEN", f"stub-token-{provider}")
 
@@ -34,8 +24,6 @@ class ConnectorError(RuntimeError):
 
 
 class Connector(ABC):
-    """A connector executes one node against an external service."""
-
     name: str = "Connector"
 
     def __init__(self, credentials: CredentialStore | None = None) -> None:
@@ -43,20 +31,17 @@ class Connector(ABC):
 
     @abstractmethod
     def run(self, config: dict, context: dict) -> ConnectorResult:
-        """Real execution — hits the external API."""
+        pass
 
     @abstractmethod
     def mock(self, config: dict, context: dict) -> ConnectorResult:
-        """Realistic fake response — used in dry-run / tests."""
+        pass
 
     def execute(self, config: dict, context: dict, dry_run: bool) -> ConnectorResult:
         return self.mock(config, context) if dry_run else self.run(config, context)
 
 
 class MockConnector:
-    """Wrapper that shadows any real connector's interface but always mocks.
-    Used to force dry-run behaviour regardless of the underlying connector."""
-
     def __init__(self, inner: Connector) -> None:
         self.inner = inner
         self.name = inner.name

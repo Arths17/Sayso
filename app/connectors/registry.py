@@ -1,8 +1,3 @@
-"""Connector registry — resolve connectors by name only.
-
-The execution engine imports THIS, never a concrete connector, keeping the
-whole library swappable.
-"""
 from __future__ import annotations
 
 from app.connectors.base import Connector, CredentialStore

@@ -1,9 +1,3 @@
-"""Critic agent — reviews the planner output for gaps before validation.
-
-Checks for missing required fields, ambiguous steps, and references to
-connectors not in the library. Returns ok OR needs_clarification with questions
-that can be answered turn-by-turn via /clarify.
-"""
 from __future__ import annotations
 
 from app.llm.client import complete_json

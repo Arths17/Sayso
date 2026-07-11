@@ -1,10 +1,3 @@
-"""Seed script — creates example workflows that exercise conditionals, loops,
-and self-healing. Run:  python seed.py
-
-Prints the created workflow ids so you can drive the API/demo against them.
-Works fully offline (stub LLM + in-memory store) or against real services when
-OPENROUTER_API_KEY / Firebase creds are set.
-"""
 from __future__ import annotations
 
 import asyncio
@@ -15,13 +8,10 @@ from app.schemas import Node, NodeType, Trigger, WorkflowSpec
 from app.storage import repository
 
 EXAMPLES = [
-    # 1) invoice example — conditional + human approval
     "When an invoice email arrives, extract the vendor, amount and due date. "
     "If the amount is greater than 5000, require human approval. Record the "
     "invoice to the finance sheet and notify #finance.",
-    # 2) loop example — for_each over sheet rows
     "For each row in the customers sheet, send a Slack message to #team with the row.",
-    # 3) clarification example — Slack with no channel
     "Send a Slack message whenever a new signup happens.",
 ]
 
@@ -43,7 +33,6 @@ async def main():
                 print(f"   dry-run: {ex.state}")
         print()
 
-    # 4) a deliberately broken workflow to demo self-healing on a real run
     broken = WorkflowSpec(
         name="Broken Slack notify (self-heal demo)",
         trigger=Trigger(type="manual"),

@@ -1,10 +1,3 @@
-"""Concrete connectors for the MVP.
-
-Real `run()` implementations are intentionally thin stubs behind the
-CredentialStore (OAuth is out of scope). The `mock()` paths return realistic
-fake data and are what dry-run exercises. HTTPRequest actually performs a
-request in real mode; everything else is a credential-gated stub.
-"""
 from __future__ import annotations
 
 import re
@@ -142,9 +135,6 @@ class PDFExtractText(Connector):
 
 
 class LLMExtractFields(Connector):
-    """Generic AI extraction node — schema + text -> structured fields.
-    Routes its LLM call through the single llm client (real or stub)."""
-
     name = "LLMExtractFields"
 
     def _extract(self, config, context, dry_run):
@@ -154,13 +144,11 @@ class LLMExtractFields(Connector):
         schema = config.get("schema") or {}
         text = str(config.get("text") or "")
 
-        # In dry-run/mock we also want realistic values; parse simple patterns.
         parsed = _naive_parse(text, schema)
 
         class _Fields(BaseModel):
             fields: dict[str, Any] = Field(default_factory=dict)
 
-        # real mode: ask the model; offline: stub. Merge naive parse for realism.
         result = complete_json(
             task="llm_extract",
             system="Extract the requested fields from the text as JSON.",

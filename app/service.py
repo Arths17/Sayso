@@ -1,4 +1,3 @@
-"""Application service — orchestrates agents + storage for the API layer."""
 from __future__ import annotations
 
 from app.agents import critic, planner, validator
@@ -13,7 +12,6 @@ from app.storage import repository
 
 def generate(prompt: str, answers: dict[str, str] | None = None) -> GenerateResponse:
     spec = planner.plan(prompt, answers)
-    # persist the workflow early so decisions/versions have a home
     record = repository.create_workflow(prompt, spec)
     repository.log_decision(record.id, "planner", {"prompt": prompt, "reasoning": spec.reasoning})
 
@@ -38,7 +36,6 @@ def clarify(workflow_id: str, answers: dict[str, str]) -> GenerateResponse:
     record = repository.get_workflow(workflow_id)
     if not record:
         raise KeyError(workflow_id)
-    # re-plan with the original prompt + accumulated answers
     spec = planner.plan(record.prompt, answers)
     repository.update_spec(workflow_id, spec, message="clarified")
     repository.log_decision(workflow_id, "planner", {"answers": answers, "reasoning": spec.reasoning})
@@ -56,7 +53,6 @@ def clarify(workflow_id: str, answers: dict[str, str]) -> GenerateResponse:
 
 
 def edit(workflow_id: str, instruction: str):
-    """Natural-language edit -> new version, diff returned."""
     record = repository.get_workflow(workflow_id)
     if not record:
         raise KeyError(workflow_id)

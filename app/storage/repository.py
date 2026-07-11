@@ -1,4 +1,3 @@
-"""Workflow + execution repository — the app's domain-level data API."""
 from __future__ import annotations
 
 from app.schemas import Execution, WorkflowRecord, WorkflowSpec
@@ -20,7 +19,7 @@ def create_workflow(prompt: str, spec: WorkflowSpec) -> WorkflowRecord:
     store.set_workflow(wid, record.model_dump())
     v = versions.create_version(wid, spec, message="initial")
     record.current_version_id = v.id
-    return get_workflow(wid)  # re-read to pick up version pointer
+    return get_workflow(wid)
 
 
 def get_workflow(workflow_id: str) -> WorkflowRecord | None:
@@ -33,7 +32,6 @@ def update_spec(workflow_id: str, spec: WorkflowSpec, message: str) -> WorkflowR
     return get_workflow(workflow_id)
 
 
-# --- executions ---
 def save_execution(execution: Execution) -> None:
     execution.updated_at = now_iso()
     get_store().set_execution(
@@ -59,7 +57,6 @@ def new_execution(workflow_id: str, version_id: str | None, dry_run: bool) -> Ex
     return ex
 
 
-# --- agent decision logging (explainability substrate) ---
 def log_decision(workflow_id: str, agent: str, decision: dict) -> None:
     get_store().log_decision(
         workflow_id,

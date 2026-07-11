@@ -1,10 +1,3 @@
-"""FastAPI application — the entire backend surface.
-
-Serverless note: the default status path is polling (GET /status). The WebSocket
-stream is a stretch goal that only works on a persistent server (not Vercel);
-the preferred realtime path for a future UI is subscribing directly to
-Firestore listeners.
-"""
 from __future__ import annotations
 
 import asyncio
@@ -99,7 +92,6 @@ def status(workflow_id: str, execution_id: str | None = None):
         if not ex:
             raise HTTPException(404, "execution not found")
         return ex
-    # default: most recent
     latest = sorted(execs, key=lambda e: e.get("created_at", ""))[-1]
     return latest
 
@@ -118,7 +110,6 @@ async def heal_approval(workflow_id: str, execution_id: str, req: HealApprovalRe
         repository.save_execution(execution)
         return {"applied": False, "state": execution.state}
     execution = await executor.apply_heal_and_resume(record.spec, execution)
-    # persist the healed spec as a new version
     versions.create_version(workflow_id, record.spec, message="self-heal patch applied")
     return {"applied": True, "state": execution.state, "execution_id": execution.id}
 
@@ -161,7 +152,6 @@ def explain(workflow_id: str, node_id: str):
     return {"node_id": node_id, "explanation": text}
 
 
-# --- optional stretch goal: WebSocket stream (persistent servers only) ---
 @app.websocket("/workflows/{workflow_id}/stream")
 async def stream(websocket: WebSocket, workflow_id: str, execution_id: str):
     await websocket.accept()

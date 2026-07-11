@@ -75,11 +75,6 @@ def complete_json(
     schema: Type[T],
     context: dict | None = None,
 ) -> T:
-    """Return a validated instance of `schema`.
-
-    `task` selects the deterministic stub when running offline; it has no
-    effect on real OpenRouter calls beyond bookkeeping.
-    """
     if not settings.use_real_llm:
         raw = stub.respond(task, context or {})
         return schema.model_validate(raw)
@@ -93,28 +88,17 @@ def complete_json(
             return schema.model_validate(data)
         except (json.JSONDecodeError, ValidationError) as e:
             last_err = e
-            # feed the error back so the model can correct itself
             prompt = (
                 f"{user}\n\nYour previous response was invalid: {e}\n"
                 "Return ONLY valid JSON matching the required schema."
             )
         except httpx.HTTPError as e:  # pragma: no cover - network
-            return _fallback_or_raise(system, prompt, schema, e)
+            # Try local model fallback before giving up
+            try:
+                from app.llm import local_model
+                content = local_model.generate_json(system, user)
+                data = json.loads(content)
+                return schema.model_validate(data)
+            except local_model.LocalModelUnavailable:
+                raise LLMError(f"OpenRouter request failed: {e}") from e
     raise LLMError(f"LLM output failed validation after retries: {last_err}")
-
-
-def _fallback_or_raise(system: str, user: str, schema: Type[T], upstream_err: Exception) -> T:
-    """OpenRouter is unreachable — try the local PyTorch model before giving up."""
-    from app.llm import local_model
-
-    try:
-        raw = local_model.generate_json(system=system, user=user)
-    except local_model.LocalModelUnavailable:
-        raise LLMError(f"OpenRouter request failed: {upstream_err}") from upstream_err
-    try:
-        data = json.loads(raw)
-        return schema.model_validate(data)
-    except (json.JSONDecodeError, ValidationError) as e:
-        raise LLMError(
-            f"OpenRouter request failed ({upstream_err}); local fallback output also invalid: {e}"
-        ) from upstream_err

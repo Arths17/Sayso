@@ -36,7 +36,7 @@ Every agent decision is logged to the store for explainability & history.
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 
-pytest -q            # 10 e2e tests: build→clarify→dry-run→explain→heal→versions
+pytest -q            # e2e tests: build→clarify→dry-run→explain→heal→approve→versions→oauth
 python seed.py       # create example workflows (invoice / loop / clarify / self-heal)
 uvicorn app.main:app --reload --port 8000
 ```
@@ -56,30 +56,43 @@ env vars below to switch to real services — no code changes.
 | `SAYSO_LLM_MAX_RETRIES` | JSON-validation retries | `2` |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to Firebase service-account JSON | unset → in-memory |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Inline service-account JSON (for Vercel) | unset |
-| `FIREBASE_PROJECT_ID` | Firestore project id | unset |
-| `SAYSO_FORCE_MOCK_CONNECTORS` | Force all connectors to mock (dry-run) | `true` |
-| `<PROVIDER>_TOKEN` | Stub OAuth token per connector provider | `stub-token-*` |
+| `FIREBASE_PROJECT_ID` | Firestore project id + Firebase Auth token verification | unset |
+| `SAYSO_AUTH_DISABLED` | Force Firebase Auth ID-token verification on/off, overriding the Firestore-presence default | unset → follows `use_firestore` |
+| `SAYSO_FORCE_MOCK_CONNECTORS` | Force all connectors to mock even on a real run | `false` |
+| `SAYSO_LOCAL_FALLBACK_ENABLED` / `SAYSO_LOCAL_FALLBACK_MODEL` | Local PyTorch model used only if OpenRouter itself is unreachable (`app/llm/local_model.py`); needs `requirements-local-llm.txt` | enabled, `Qwen/Qwen2.5-0.5B-Instruct` |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | OAuth client for the Gmail/Drive/Sheets connectors (separate from Firebase Auth's Google Sign-in) | unset → connectors raise until a user connects via `/oauth/google/start` |
+| `GOOGLE_OAUTH_REDIRECT_URI` | Must be registered as an authorized redirect URI on that OAuth client | `http://localhost:8000/oauth/google/callback` |
+| `<PROVIDER>_TOKEN` | Stub OAuth token fallback per connector provider (Slack, HTTP, etc.) | `stub-token-*` |
 
 Firestore layout: `workflows/{id}`, `workflows/{id}/versions/{vid}`,
-`workflows/{id}/executions/{eid}`, `workflows/{id}/decisions/*`.
+`workflows/{id}/executions/{eid}`, `workflows/{id}/decisions/*`,
+`users/{uid}/credentials/google` (OAuth tokens).
 
 ## API surface
 
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/health` | health check (verify on Vercel first) |
-| POST | `/workflows/generate` | prompt → planner → critic → (clarify \| validated) |
-| POST | `/workflows/{id}/clarify` | answer critic questions, re-plan |
-| POST | `/workflows/{id}/edit` | NL edit → new version + diff |
-| GET | `/workflows/{id}` | full workflow spec (UI reads this) |
-| POST | `/workflows/{id}/dry-run` | execute with mocked connectors |
-| POST | `/workflows/{id}/run` | execute for real (triggers healer on failure) |
-| POST | `/workflows/{id}/executions/{eid}/heal` | approve/reject a self-heal patch |
-| GET | `/workflows/{id}/status` | poll execution state per node (serverless default) |
-| GET | `/workflows/{id}/versions` | list version history |
-| POST | `/workflows/{id}/revert/{version}` | revert (append-only) |
-| GET | `/workflows/{id}/nodes/{node_id}/explain` | plain-English node rationale |
+| GET | `/oauth/google/start` | (auth) returns the Google consent URL for Gmail/Drive/Sheets scopes |
+| GET | `/oauth/google/status` | (auth) whether this user has connected a Google account |
+| GET | `/oauth/google/callback` | Google redirects here after consent; exchanges code, stores tokens |
+| POST | `/workflows/generate` | (auth) prompt → planner → critic → (clarify \| validated) |
+| POST | `/workflows/{id}/clarify` | (auth) answer critic questions, re-plan |
+| POST | `/workflows/{id}/edit` | (auth) NL edit → new version + diff |
+| GET | `/workflows/{id}` | (auth) full workflow spec (UI reads this) |
+| POST | `/workflows/{id}/dry-run` | (auth) execute with mocked connectors |
+| POST | `/workflows/{id}/run` | (auth) execute for real (triggers healer on failure) |
+| POST | `/workflows/{id}/executions/{eid}/heal` | (auth) approve/reject a self-heal patch |
+| POST | `/workflows/{id}/executions/{eid}/approve` | (auth) approve/reject a paused human_approval node |
+| GET | `/workflows/{id}/status` | (auth) poll execution state per node (serverless default) |
+| GET | `/workflows/{id}/versions` | (auth) list version history |
+| POST | `/workflows/{id}/revert/{version}` | (auth) revert (append-only) |
+| GET | `/workflows/{id}/nodes/{node_id}/explain` | (auth) plain-English node rationale |
 | WS | `/workflows/{id}/stream` | optional stretch goal — persistent servers only |
+
+`(auth)` = requires `Authorization: Bearer <Firebase ID token>`, enforced only
+when Firestore credentials are configured (`app/auth.py`); bypassed for local
+dev/tests otherwise.
 
 ## Deploying to Vercel
 

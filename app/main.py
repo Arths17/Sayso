@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
-from app import service
+from app import google_oauth, service
 from app.agents import explainer
 from app.auth import get_current_user
 from app.connectors import registry
@@ -31,6 +32,38 @@ router = APIRouter(dependencies=[Depends(get_current_user)])
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "sayso", "connectors": registry.available()}
+
+
+@app.get("/oauth/google/start")
+async def google_oauth_start(user=Depends(get_current_user)):
+    """Returns the Google consent URL for the caller to navigate the browser
+    to. Can't redirect directly here since the frontend must call this with
+    its Bearer token attached — a plain browser navigation couldn't."""
+    if not google_oauth.settings.google_oauth_enabled:
+        raise HTTPException(400, "Google OAuth not configured (GOOGLE_OAUTH_CLIENT_ID/SECRET)")
+    state = base64.urlsafe_b64encode(user.uid.encode()).decode()
+    return {"auth_url": google_oauth.build_auth_url(state)}
+
+
+@app.get("/oauth/google/status")
+async def google_oauth_status(user=Depends(get_current_user)):
+    return {"connected": google_oauth.is_connected(user.uid)}
+
+
+@app.get("/oauth/google/callback")
+async def google_oauth_callback(code: str, state: str):
+    """Hit by Google's redirect after consent — no Bearer token available,
+    so the uid travels in `state` (set by /oauth/google/start)."""
+    try:
+        uid = base64.urlsafe_b64decode(state.encode()).decode()
+    except Exception as e:
+        raise HTTPException(400, "invalid state") from e
+    try:
+        token_response = google_oauth.exchange_code(code)
+        google_oauth.store_tokens(uid, token_response)
+    except google_oauth.GoogleOAuthError as e:
+        raise HTTPException(400, str(e)) from e
+    return {"connected": True}
 
 
 @router.post("/workflows/generate", response_model=GenerateResponse)
@@ -63,23 +96,24 @@ def get_workflow(workflow_id: str):
     return record
 
 
-async def _start_run(workflow_id: str, dry_run: bool) -> RunResponse:
+async def _start_run(workflow_id: str, dry_run: bool, uid: str) -> RunResponse:
     record = repository.get_workflow(workflow_id)
     if not record:
         raise HTTPException(404, "workflow not found")
     execution = repository.new_execution(workflow_id, record.current_version_id, dry_run)
+    execution.context["__uid__"] = uid
     execution = await executor.run_execution(record.spec, execution)
     return RunResponse(execution_id=execution.id, state=execution.state)
 
 
 @router.post("/workflows/{workflow_id}/dry-run", response_model=RunResponse)
-async def dry_run(workflow_id: str):
-    return await _start_run(workflow_id, dry_run=True)
+async def dry_run(workflow_id: str, user=Depends(get_current_user)):
+    return await _start_run(workflow_id, dry_run=True, uid=user.uid)
 
 
 @router.post("/workflows/{workflow_id}/run", response_model=RunResponse)
-async def run(workflow_id: str):
-    return await _start_run(workflow_id, dry_run=False)
+async def run(workflow_id: str, user=Depends(get_current_user)):
+    return await _start_run(workflow_id, dry_run=False, uid=user.uid)
 
 
 @router.get("/workflows/{workflow_id}/status")

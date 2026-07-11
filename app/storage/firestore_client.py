@@ -35,6 +35,12 @@ class Store(ABC):
     @abstractmethod
     def list_decisions(self, wid: str) -> list[dict[str, Any]]: ...
 
+    # --- per-user Google OAuth tokens (refresh_token, access_token, expiry) ---
+    @abstractmethod
+    def set_google_tokens(self, uid: str, data: dict[str, Any]) -> None: ...
+    @abstractmethod
+    def get_google_tokens(self, uid: str) -> dict[str, Any] | None: ...
+
 
 class InMemoryStore(Store):
     def __init__(self) -> None:
@@ -43,6 +49,7 @@ class InMemoryStore(Store):
         self._versions: dict[str, dict[str, dict]] = {}
         self._executions: dict[str, dict[str, dict]] = {}
         self._decisions: dict[str, list[dict]] = {}
+        self._google_tokens: dict[str, dict] = {}
 
     @staticmethod
     def _copy(d: dict) -> dict:
@@ -96,6 +103,15 @@ class InMemoryStore(Store):
         with self._lock:
             return [self._copy(r) for r in self._decisions.get(wid, [])]
 
+    def set_google_tokens(self, uid, data):
+        with self._lock:
+            self._google_tokens[uid] = self._copy(data)
+
+    def get_google_tokens(self, uid):
+        with self._lock:
+            v = self._google_tokens.get(uid)
+            return self._copy(v) if v else None
+
 
 class FirestoreStore(Store):
     def __init__(self) -> None:
@@ -144,6 +160,16 @@ class FirestoreStore(Store):
 
     def list_decisions(self, wid):
         return [d.to_dict() for d in self._wf(wid).collection("decisions").stream()]
+
+    def _user(self, uid: str):
+        return self.db.collection("users").document(uid)
+
+    def set_google_tokens(self, uid, data):
+        self._user(uid).collection("credentials").document("google").set(data)
+
+    def get_google_tokens(self, uid):
+        doc = self._user(uid).collection("credentials").document("google").get()
+        return doc.to_dict() if doc.exists else None
 
 
 _store: Store | None = None

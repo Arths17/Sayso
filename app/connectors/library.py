@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import json
 import re
 from typing import Any
 
@@ -7,12 +9,57 @@ import httpx
 
 from app.connectors.base import Connector, ConnectorError, ConnectorResult
 
+_GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me"
+_DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3/files"
+_SHEETS = "https://sheets.googleapis.com/v4/spreadsheets"
+
+
+def _google_auth_header(credentials, provider: str, context: dict) -> dict:
+    uid = context.get("__uid__")
+    if not uid:
+        raise ConnectorError(f"no authenticated user in context for {provider} call")
+    token = credentials.token(provider, uid=uid)
+    if token.startswith("stub-token-"):
+        raise ConnectorError(
+            f"Google account not connected for this user — visit /oauth/google/start "
+            f"to connect {provider}"
+        )
+    return {"Authorization": f"Bearer {token}"}
+
 
 class GmailTrigger(Connector):
     name = "GmailTrigger"
 
     def run(self, config, context):
-        return ConnectorResult(output={"messages": [], "note": "real gmail stub"})
+        headers = _google_auth_header(self.credentials, "gmail", context)
+        with httpx.Client(timeout=30, headers=headers) as c:
+            r = c.get(f"{_GMAIL}/messages", params={"q": config.get("query", ""), "maxResults": 1})
+            r.raise_for_status()
+            found = r.json().get("messages", [])
+            if not found:
+                return ConnectorResult(output={"messages": []})
+            msg_id = found[0]["id"]
+            m = c.get(
+                f"{_GMAIL}/messages/{msg_id}",
+                params={"format": "metadata", "metadataHeaders": ["From", "Subject"]},
+            )
+            m.raise_for_status()
+            data = m.json()
+
+        hdrs = {h["name"]: h["value"] for h in data.get("payload", {}).get("headers", [])}
+        attachment_id = None
+        for part in data.get("payload", {}).get("parts") or []:
+            if part.get("filename"):
+                attachment_id = part.get("body", {}).get("attachmentId")
+                break
+        return ConnectorResult(
+            output={
+                "message_id": msg_id,
+                "from": hdrs.get("From"),
+                "subject": hdrs.get("Subject"),
+                "attachment_id": attachment_id,
+            }
+        )
 
     def mock(self, config, context):
         return ConnectorResult(
@@ -30,6 +77,14 @@ class GmailSend(Connector):
 
     def run(self, config, context):
         _require(config, ["to", "body"])
+        headers = _google_auth_header(self.credentials, "gmail", context)
+        message = (
+            f"To: {config['to']}\r\nSubject: {config.get('subject', '')}\r\n\r\n{config['body']}"
+        )
+        raw = base64.urlsafe_b64encode(message.encode()).decode()
+        with httpx.Client(timeout=30, headers=headers) as c:
+            r = c.post(f"{_GMAIL}/messages/send", json={"raw": raw})
+            r.raise_for_status()
         return ConnectorResult(output={"sent": True, "to": config["to"]})
 
     def mock(self, config, context):
@@ -40,7 +95,21 @@ class DriveUpload(Connector):
     name = "DriveUpload"
 
     def run(self, config, context):
-        return ConnectorResult(output={"file_id": "drive_real_1", "url": "https://drive/x"})
+        headers = _google_auth_header(self.credentials, "drive", context)
+        filename = config.get("filename", "upload.txt")
+        content = config.get("content", "")
+        body = content.encode() if isinstance(content, str) else content
+        files = {
+            "metadata": (None, json.dumps({"name": filename}), "application/json"),
+            "file": (filename, body),
+        }
+        with httpx.Client(timeout=60, headers=headers) as c:
+            r = c.post(f"{_DRIVE_UPLOAD}?uploadType=multipart", files=files)
+            r.raise_for_status()
+            data = r.json()
+        return ConnectorResult(
+            output={"file_id": data["id"], "url": f"https://drive.google.com/file/d/{data['id']}/view"}
+        )
 
     def mock(self, config, context):
         return ConnectorResult(
@@ -54,7 +123,25 @@ class SheetsAppend(Connector):
     def run(self, config, context):
         if not config.get("spreadsheet_id"):
             raise ConnectorError("spreadsheet_id not found")
-        return ConnectorResult(output={"appended": True, "row": config.get("row")})
+        headers = _google_auth_header(self.credentials, "sheets", context)
+        row = config.get("row", {})
+        values = [list(row.values())] if isinstance(row, dict) else [row]
+        range_ = config.get("range", "A1")
+        with httpx.Client(timeout=30, headers=headers) as c:
+            r = c.post(
+                f"{_SHEETS}/{config['spreadsheet_id']}/values/{range_}:append",
+                params={"valueInputOption": "USER_ENTERED"},
+                json={"values": values},
+            )
+            r.raise_for_status()
+            data = r.json()
+        return ConnectorResult(
+            output={
+                "appended": True,
+                "row": row,
+                "updated_range": data.get("updates", {}).get("updatedRange"),
+            }
+        )
 
     def mock(self, config, context):
         return ConnectorResult(
@@ -68,7 +155,16 @@ class SheetsReadRows(Connector):
     def run(self, config, context):
         if not config.get("spreadsheet_id"):
             raise ConnectorError("spreadsheet_id not found")
-        return ConnectorResult(output={"rows": []})
+        headers = _google_auth_header(self.credentials, "sheets", context)
+        range_ = config.get("range", "Sheet1")
+        with httpx.Client(timeout=30, headers=headers) as c:
+            r = c.get(f"{_SHEETS}/{config['spreadsheet_id']}/values/{range_}")
+            r.raise_for_status()
+            values = r.json().get("values", [])
+        if not values:
+            return ConnectorResult(output={"rows": []})
+        header, *body = values
+        return ConnectorResult(output={"rows": [dict(zip(header, row)) for row in body]})
 
     def mock(self, config, context):
         return ConnectorResult(

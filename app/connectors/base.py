@@ -14,8 +14,27 @@ class ConnectorResult:
     meta: dict[str, Any] = field(default_factory=dict)
 
 
+_GOOGLE_PROVIDERS = {"gmail", "drive", "sheets"}
+
+
 class CredentialStore:
-    def token(self, provider: str) -> str:
+    """Resolves an access token for a connector to use.
+
+    Gmail/Drive/Sheets go through the real Google OAuth flow
+    (app/google_oauth.py) when a `uid` is supplied and that user has
+    connected their Google account; everything else (and any provider with
+    no uid/connection) falls back to a stub env-var token, keeping offline
+    dev/tests working without OAuth.
+    """
+
+    def token(self, provider: str, uid: str | None = None) -> str:
+        if uid and provider.lower() in _GOOGLE_PROVIDERS:
+            from app.google_oauth import GoogleOAuthError, get_access_token
+
+            try:
+                return get_access_token(uid)
+            except GoogleOAuthError:
+                pass
         return os.getenv(f"{provider.upper()}_TOKEN", f"stub-token-{provider}")
 
 

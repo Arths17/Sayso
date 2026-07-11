@@ -201,6 +201,54 @@ def test_openrouter_failure_raises_when_local_model_also_unavailable(monkeypatch
         client.complete_json(task="t", system="s", user="u", schema=Dummy)
 
 
+def test_google_oauth_start_requires_configured_client():
+    r = client.get("/oauth/google/start")
+    assert r.status_code == 400
+
+
+def test_google_oauth_start_returns_auth_url(monkeypatch):
+    from app import google_oauth
+
+    monkeypatch.setattr(google_oauth.settings, "google_oauth_client_id", "fake-id")
+    monkeypatch.setattr(google_oauth.settings, "google_oauth_client_secret", "fake-secret")
+
+    r = client.get("/oauth/google/start")
+    assert r.status_code == 200
+    assert "accounts.google.com" in r.json()["auth_url"]
+
+
+def test_google_oauth_callback_stores_tokens(monkeypatch):
+    import base64
+
+    from app import google_oauth
+
+    monkeypatch.setattr(
+        google_oauth, "exchange_code",
+        lambda code: {"access_token": "tok", "refresh_token": "refresh", "expires_in": 3600},
+    )
+    state = base64.urlsafe_b64encode(b"dev-user").decode()
+    r = client.get("/oauth/google/callback", params={"code": "abc", "state": state})
+    assert r.status_code == 200
+    assert google_oauth.is_connected("dev-user")
+
+
+def test_google_oauth_callback_rejects_invalid_state():
+    r = client.get("/oauth/google/callback", params={"code": "abc", "state": "not-valid-base64!!"})
+    assert r.status_code == 400
+
+
+def test_credential_store_falls_back_to_stub_without_uid():
+    from app.connectors.base import CredentialStore
+    token = CredentialStore().token("gmail")
+    assert token == "stub-token-gmail"
+
+
+def test_google_connector_rejects_run_without_authenticated_uid():
+    from app.connectors.library import GmailSend
+    with pytest.raises(Exception):
+        GmailSend().run({"to": "a@b.com", "body": "hi"}, {})
+
+
 def test_validator_rejects_unknown_connector():
     from app.agents import validator
     spec = WorkflowSpec(name="x", nodes=[

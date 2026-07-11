@@ -36,6 +36,15 @@ class Settings:
         "SAYSO_LOCAL_FALLBACK_MODEL", "Qwen/Qwen2.5-0.5B-Instruct"
     )
 
+    # --- Google OAuth (Gmail/Drive/Sheets connectors) ---
+    # Separate from Firebase Auth's "Sign in with Google" — this is the OAuth
+    # client used to get user consent for Gmail/Drive/Sheets API scopes.
+    google_oauth_client_id: str | None = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
+    google_oauth_client_secret: str | None = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+    google_oauth_redirect_uri: str = os.getenv(
+        "GOOGLE_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/google/callback"
+    )
+
     firebase_credentials_path: str | None = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     firebase_service_account_json: str | None = os.getenv(
         "FIREBASE_SERVICE_ACCOUNT_JSON"
@@ -58,6 +67,10 @@ class Settings:
     @property
     def use_real_llm(self) -> bool:
         return bool(self.openrouter_api_key)
+
+    @property
+    def google_oauth_enabled(self) -> bool:
+        return bool(self.google_oauth_client_id and self.google_oauth_client_secret)
 
     @property
     def use_firestore(self) -> bool:

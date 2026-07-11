@@ -66,3 +66,11 @@ def log_decision(workflow_id: str, agent: str, decision: dict) -> None:
 
 def list_decisions(workflow_id: str) -> list[dict]:
     return get_store().list_decisions(workflow_id)
+
+
+def set_google_tokens(uid: str, data: dict) -> None:
+    get_store().set_google_tokens(uid, data)
+
+
+def get_google_tokens(uid: str) -> dict | None:
+    return get_store().get_google_tokens(uid)

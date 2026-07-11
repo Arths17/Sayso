@@ -340,6 +340,82 @@ def test_http_request_real_run_blocked_for_private_url(monkeypatch):
         HTTPRequest().run({"url": "http://localhost/admin"}, {})
 
 
+def _make_blank_pdf_base64() -> str:
+    import base64
+    import io
+
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    buf = io.BytesIO()
+    writer.write(buf)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def test_pdf_extract_text_from_inline_base64():
+    from app.connectors.library import PDFExtractText
+
+    result = PDFExtractText().run({"source": _make_blank_pdf_base64()}, {})
+    assert result.output["text"] == ""
+
+
+def test_pdf_extract_text_invalid_base64_raises():
+    from app.connectors.base import ConnectorError
+    from app.connectors.library import PDFExtractText
+
+    with pytest.raises(ConnectorError):
+        PDFExtractText().run({"source": "not-valid-base64!!!"}, {})
+
+
+def test_pdf_extract_text_missing_source_raises():
+    from app.connectors.base import ConnectorError
+    from app.connectors.library import PDFExtractText
+
+    with pytest.raises(ConnectorError):
+        PDFExtractText().run({}, {})
+
+
+def test_pdf_extract_text_fetches_gmail_attachment(monkeypatch):
+    import base64
+
+    import httpx as httpx_module
+
+    from app.connectors.library import PDFExtractText
+
+    pdf_b64 = _make_blank_pdf_base64()
+    urlsafe_no_pad = base64.urlsafe_b64encode(base64.b64decode(pdf_b64)).decode().rstrip("=")
+
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"data": urlsafe_no_pad}
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
+
+        def get(self, *a, **k):
+            return FakeResponse()
+
+    monkeypatch.setenv("GMAIL_TOKEN", "fake-gmail-token")
+    monkeypatch.setattr(httpx_module, "Client", FakeClient)
+
+    result = PDFExtractText().run(
+        {"source": {"message_id": "msg1", "attachment_id": "att1"}},
+        {"__uid__": "dev-user"},
+    )
+    assert result.output["text"] == ""
+
+
 def test_slack_notify_real_run_without_token_raises():
     from app.connectors.base import ConnectorError
     from app.connectors.library import SlackNotify

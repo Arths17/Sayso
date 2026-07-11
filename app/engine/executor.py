@@ -1,9 +1,26 @@
+"""Execution engine.
+
+Walks the compiled DAG in dependency order, running independent nodes
+concurrently. State is persisted to the store after EVERY node, so a long
+workflow can be resumed across multiple (serverless) invocations rather than
+needing one continuous process.
+
+- dry_run: connectors return realistic mock data (via MockConnector).
+- conditionals enable only the taken branch; unreached nodes are skipped.
+- for_each runs its loop body once per item with `item` bound in context.
+- human_approval gates auto-approve unless `auto_approve=False` on a real run,
+  in which case execution pauses (awaiting_approval) until the API's
+  /approve endpoint resolves it.
+- on real-run node failure the Self-Healing agent proposes a patch and the
+  execution pauses (awaiting_heal_approval) instead of dying.
+"""
 from __future__ import annotations
 
 import asyncio
 
-from app.agents import healer
+from app.agents import healer, validator
 from app.compiler.graph_builder import CompiledGraph, compile_spec
+from app.config import settings
 from app.connectors import registry
 from app.connectors.base import MockConnector
 from app.engine.context import eval_condition, resolve
@@ -32,7 +49,7 @@ def _completed_ids(execution: Execution) -> set[str]:
 
 async def _run_connector(node: Node, config: dict, context: dict, dry_run: bool):
     connector = registry.resolve(node.connector)
-    if dry_run:
+    if dry_run or settings.force_mock_connectors:
         connector = MockConnector(connector)
         result = await asyncio.to_thread(connector.execute, config, context)
     else:
@@ -120,7 +137,8 @@ async def _execute_node(
             return False
         _log(execution, node.id, status=NodeStatus.awaiting_approval, start_time=start,
              reasoning=node.reasoning)
-        execution.state = ExecutionState.awaiting_heal_approval
+        execution.pending_approval_node_id = node.id
+        execution.state = ExecutionState.awaiting_approval
         return True
 
     if node.type == NodeType.for_each:
@@ -128,9 +146,13 @@ async def _execute_node(
         outputs = []
         for idx, item in enumerate(items):
             loop_ctx = {**context, "item": item, "index": idx}
+            iter_disabled: set[str] = set()
             for body_id in node.loop_body:
+                if body_id in iter_disabled:
+                    outputs.append({body_id: {"skipped": "untaken branch"}})
+                    continue
                 body = graph.nodes[body_id]
-                res = await _run_body_node(body, loop_ctx, execution.dry_run)
+                res = await _run_body_node(body, loop_ctx, execution.dry_run, iter_disabled)
                 outputs.append({body_id: res})
         _log(execution, node.id, status=NodeStatus.succeeded, start_time=start,
              end_time=now_iso(), input={"count": len(items)}, output={"iterations": outputs},
@@ -142,8 +164,11 @@ async def _execute_node(
 
     resolved_config = resolve(node.config, context)
     attempts = max(1, node.retry_policy.max_attempts)
+    backoff = node.retry_policy.backoff_seconds
     last_error = None
     for attempt in range(1, attempts + 1):
+        if attempt > 1 and backoff > 0:
+            await asyncio.sleep(backoff * (2 ** (attempt - 2)))
         try:
             result = await _run_connector(node, resolved_config, context, execution.dry_run)
             if result.status != "succeeded":
@@ -172,9 +197,19 @@ async def _execute_node(
     return True
 
 
-async def _run_body_node(node: Node, context: dict, dry_run: bool):
+async def _run_body_node(node: Node, context: dict, dry_run: bool, iter_disabled: set[str]):
+    """Execute one node inside a for_each iteration. Conditionals disable their
+    untaken branch for the rest of this iteration; approvals auto-approve
+    (pausing mid-loop for a human is out of scope for this MVP)."""
+    if node.type == NodeType.conditional:
+        taken = eval_condition(node.condition or "false", context)
+        not_taken = node.false_branch if taken else node.true_branch
+        iter_disabled.update(not_taken)
+        return {"taken": taken}
+    if node.type == NodeType.human_approval:
+        return {"approved": True, "auto": True}
     if node.type != NodeType.connector:
-        return {"skipped": "non-connector in loop body"}
+        return {"skipped": f"unsupported node type in loop body: {node.type}"}
     resolved = resolve(node.config, context)
     result = await _run_connector(node, resolved, context, dry_run)
     return result.output
@@ -184,7 +219,7 @@ def _trigger_output(spec: WorkflowSpec, dry_run: bool) -> dict:
     trig = spec.trigger
     if trig.type != "manual" and registry.has_connector(trig.type):
         connector = registry.resolve(trig.type)
-        if dry_run:
+        if dry_run or settings.force_mock_connectors:
             connector = MockConnector(connector)
             return connector.execute(trig.config, {}).output or {}
         return connector.execute(trig.config, {}, False).output or {}
@@ -192,12 +227,44 @@ def _trigger_output(spec: WorkflowSpec, dry_run: bool) -> dict:
 
 
 async def apply_heal_and_resume(spec: WorkflowSpec, execution: Execution) -> Execution:
+    """Apply the pending patch to the failing node, re-validate the patched
+    spec, and either resume execution or reject the patch back to the caller."""
     patch = execution.pending_heal
     if not patch:
         return execution
     node = spec.get_node(patch.node_id)
     healed = healer.apply_patch(node, patch)
+    candidate_nodes = [healed if n.id == patch.node_id else n for n in spec.nodes]
+    candidate_spec = spec.model_copy(update={"nodes": candidate_nodes})
+
+    result = validator.validate(candidate_spec)
+    if not result.passed:
+        reasons = "; ".join(f"{e.node_id}: {e.reason}" for e in result.errors)
+        _log(execution, patch.node_id, status=NodeStatus.failed,
+             error=f"patch rejected by validator: {reasons}")
+        execution.state = ExecutionState.failed
+        execution.pending_heal = None
+        repository.save_execution(execution)
+        return execution
+
+    # mutate spec in place so downstream refs and re-run use the patched node
+    spec.nodes = candidate_nodes
     spec.nodes = [healed if n.id == patch.node_id else n for n in spec.nodes]
     execution.pending_heal = None
     repository.log_decision(execution.workflow_id, "healer", {"applied": patch.node_id})
+    return await run_execution(spec, execution)
+
+
+async def apply_approval_and_resume(spec: WorkflowSpec, execution: Execution, approved: bool) -> Execution:
+    """Resolve a paused human_approval node, then continue or halt the execution."""
+    node_id = execution.pending_approval_node_id
+    if not node_id:
+        return execution
+    execution.pending_approval_node_id = None
+    if not approved:
+        _log(execution, node_id, status=NodeStatus.failed, reasoning="rejected by user")
+        execution.state = ExecutionState.failed
+        repository.save_execution(execution)
+        return execution
+    _log(execution, node_id, status=NodeStatus.succeeded, output={"approved": True, "auto": False})
     return await run_execution(spec, execution)

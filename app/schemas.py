@@ -101,6 +101,7 @@ class ExecutionState(str, Enum):
     completed = "completed"
     failed = "failed"
     awaiting_heal_approval = "awaiting_heal_approval"
+    awaiting_approval = "awaiting_approval"
 
 
 class Execution(BaseModel):
@@ -114,6 +115,7 @@ class Execution(BaseModel):
     created_at: str | None = None
     updated_at: str | None = None
     pending_heal: "HealPatch | None" = None
+    pending_approval_node_id: str | None = None
 
 
 class HealPatch(BaseModel):
@@ -168,6 +170,10 @@ class RunResponse(BaseModel):
 
 
 class HealApprovalRequest(BaseModel):
+    approve: bool
+
+
+class ApprovalRequest(BaseModel):
     approve: bool
 
 

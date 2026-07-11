@@ -9,6 +9,7 @@ from app.agents import explainer
 from app.connectors import registry
 from app.engine import executor
 from app.schemas import (
+    ApprovalRequest,
     ClarifyRequest,
     EditRequest,
     GenerateRequest,
@@ -106,6 +107,18 @@ async def heal_approval(workflow_id: str, execution_id: str, req: HealApprovalRe
     execution = await executor.apply_heal_and_resume(record.spec, execution)
     versions.create_version(workflow_id, record.spec, message="self-heal patch applied")
     return {"applied": True, "state": execution.state, "execution_id": execution.id}
+
+
+@app.post("/workflows/{workflow_id}/executions/{execution_id}/approve")
+async def approve(workflow_id: str, execution_id: str, req: ApprovalRequest):
+    record = repository.get_workflow(workflow_id)
+    execution = repository.get_execution(workflow_id, execution_id)
+    if not record or not execution:
+        raise HTTPException(404, "not found")
+    if not execution.pending_approval_node_id:
+        raise HTTPException(400, "no pending approval")
+    execution = await executor.apply_approval_and_resume(record.spec, execution, req.approve)
+    return {"approved": req.approve, "state": execution.state, "execution_id": execution.id}
 
 
 @app.get("/workflows/{workflow_id}/versions")

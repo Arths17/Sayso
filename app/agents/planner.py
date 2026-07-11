@@ -1,8 +1,3 @@
-"""Planner agent — natural language -> WorkflowSpec JSON.
-
-Prompts the model to emit ONLY valid JSON matching WorkflowSpec, including a
-hidden `reasoning` field per step (consumed later by the explainer).
-"""
 from __future__ import annotations
 
 import json

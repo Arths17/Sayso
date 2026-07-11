@@ -1,10 +1,3 @@
-"""Workflow compiler — validated WorkflowSpec -> executable DAG.
-
-Conditional branches and for_each loops are first-class node types. The DAG is
-a networkx.DiGraph of node ids; each node carries its compiled config. Control
-edges (branch/loop) are stored separately so the executor can honour them
-without treating them as ordering dependencies.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -19,9 +12,7 @@ class CompiledGraph:
     spec: WorkflowSpec
     dag: nx.DiGraph
     nodes: dict[str, Node]
-    # node_id -> {"true": [...], "false": [...]} for conditionals
     branches: dict[str, dict[str, list[str]]] = field(default_factory=dict)
-    # for_each node_id -> body node ids
     loops: dict[str, list[str]] = field(default_factory=dict)
 
     def execution_order(self) -> list[str]:
@@ -41,7 +32,6 @@ def compile_spec(spec: WorkflowSpec) -> CompiledGraph:
 
     for node in spec.nodes:
         for dep in node.depends_on:
-            # loop-body back-references are control edges, not DAG edges
             if node.type == NodeType.for_each and dep in node.loop_body:
                 continue
             dag.add_edge(dep, node.id)

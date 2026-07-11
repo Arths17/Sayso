@@ -1,17 +1,3 @@
-"""Execution engine.
-
-Walks the compiled DAG in dependency order, running independent nodes
-concurrently. State is persisted to the store after EVERY node, so a long
-workflow can be resumed across multiple (serverless) invocations rather than
-needing one continuous process.
-
-- dry_run: connectors return realistic mock data (via MockConnector).
-- conditionals enable only the taken branch; unreached nodes are skipped.
-- for_each runs its loop body once per item with `item` bound in context.
-- human_approval gates are logged; auto-approved in this MVP unless configured.
-- on real-run node failure the Self-Healing agent proposes a patch and the
-  execution pauses (awaiting_heal_approval) instead of dying.
-"""
 from __future__ import annotations
 
 import asyncio
@@ -55,7 +41,6 @@ async def _run_connector(node: Node, config: dict, context: dict, dry_run: bool)
 
 
 async def run_execution(spec: WorkflowSpec, execution: Execution) -> Execution:
-    """Run (or resume) an execution to completion or to the next pause point."""
     graph = compile_spec(spec)
     execution.state = ExecutionState.running
     repository.save_execution(execution)
@@ -63,12 +48,10 @@ async def run_execution(spec: WorkflowSpec, execution: Execution) -> Execution:
     context = execution.context
     context.setdefault("trigger", _trigger_output(spec, execution.dry_run))
     context.setdefault("__vars__", spec.variables)
-    # variables are addressable as bare roots too (e.g. approval_threshold)
     for k, v in spec.variables.items():
         context.setdefault(k, v)
 
     completed = _completed_ids(execution)
-    # nodes explicitly disabled by an untaken branch
     disabled: set[str] = set(execution.context.get("__disabled__", []))
 
     for node_id in graph.execution_order():
@@ -76,14 +59,12 @@ async def run_execution(spec: WorkflowSpec, execution: Execution) -> Execution:
             continue
         node = graph.nodes[node_id]
 
-        # a node runs only if every dependency completed and none disabled it
         deps = [d for d in node.depends_on if not _is_control_backedge(graph, node, d)]
         if any(d in disabled for d in deps) and not any(d in completed for d in deps):
             disabled.add(node_id)
             _log(execution, node_id, status=NodeStatus.skipped, reasoning=node.reasoning)
             continue
         if not all(d in completed for d in deps):
-            # dependency didn't complete (skipped upstream) -> skip
             if any(d in disabled for d in deps):
                 disabled.add(node_id)
                 _log(execution, node_id, status=NodeStatus.skipped)
@@ -112,7 +93,6 @@ async def _execute_node(
     completed: set,
     disabled: set,
 ) -> bool:
-    """Execute one node. Returns True if the execution must pause."""
     start = now_iso()
 
     if node.type == NodeType.conditional:
@@ -140,7 +120,7 @@ async def _execute_node(
             return False
         _log(execution, node.id, status=NodeStatus.awaiting_approval, start_time=start,
              reasoning=node.reasoning)
-        execution.state = ExecutionState.awaiting_heal_approval  # reuse pause state
+        execution.state = ExecutionState.awaiting_heal_approval
         return True
 
     if node.type == NodeType.for_each:
@@ -157,10 +137,9 @@ async def _execute_node(
              reasoning=node.reasoning)
         completed.add(node.id)
         for body_id in node.loop_body:
-            completed.add(body_id)  # body nodes handled inline
+            completed.add(body_id)
         return False
 
-    # ---- connector node ----
     resolved_config = resolve(node.config, context)
     attempts = max(1, node.retry_policy.max_attempts)
     last_error = None
@@ -175,10 +154,9 @@ async def _execute_node(
                  reasoning=node.reasoning, attempt=attempt)
             completed.add(node.id)
             return False
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             last_error = str(e)
 
-    # ---- failure: invoke self-healing (real runs only) ----
     _log(execution, node.id, status=NodeStatus.failed, start_time=start,
          end_time=now_iso(), input=resolved_config, error=last_error, reasoning=node.reasoning)
 
@@ -213,18 +191,12 @@ def _trigger_output(spec: WorkflowSpec, dry_run: bool) -> dict:
     return {}
 
 
-# --------------------------------------------------------------------------- #
-# Heal approval / resume
-# --------------------------------------------------------------------------- #
 async def apply_heal_and_resume(spec: WorkflowSpec, execution: Execution) -> Execution:
-    """Apply the pending patch to the failing node, re-run just that node, and
-    continue the execution."""
     patch = execution.pending_heal
     if not patch:
         return execution
     node = spec.get_node(patch.node_id)
     healed = healer.apply_patch(node, patch)
-    # mutate spec in place so downstream refs and re-run use the patched node
     spec.nodes = [healed if n.id == patch.node_id else n for n in spec.nodes]
     execution.pending_heal = None
     repository.log_decision(execution.workflow_id, "healer", {"applied": patch.node_id})

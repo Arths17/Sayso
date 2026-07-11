@@ -1,6 +1,3 @@
-"""Version history — append-only. Every edit writes a new version document
-holding a diff against the previous version. Revert = write a NEW version that
-copies an old one's content (history is never rewritten)."""
 from __future__ import annotations
 
 from typing import Any
@@ -11,7 +8,6 @@ from app.utils import new_id, now_iso
 
 
 def compute_diff(old: dict[str, Any] | None, new: dict[str, Any]) -> dict[str, Any]:
-    """Shallow, human-readable field-level diff between two spec dicts."""
     if old is None:
         return {"added": new, "removed": {}, "changed": {}}
     added, removed, changed = {}, {}, {}
@@ -44,7 +40,6 @@ def create_version(
     )
     store.add_version(workflow_id, version.id, version.model_dump())
 
-    # point the workflow doc at the new current version
     wf = store.get_workflow(workflow_id)
     if wf:
         wf["spec"] = spec.model_dump()

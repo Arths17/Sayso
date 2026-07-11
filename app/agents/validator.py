@@ -1,12 +1,3 @@
-"""Validator agent — DETERMINISTIC (no LLM).
-
-Checks the workflow graph against the real connector registry:
-  - every connector node's connector exists
-  - every {{ node.field }} reference points to a real prior node
-  - depends_on targets exist
-  - no cycles except explicit for_each loop bodies
-Returns pass/fail with specific (node_id, reason) locations.
-"""
 from __future__ import annotations
 
 import re
@@ -32,8 +23,7 @@ def _refs_in(obj) -> set[str]:
     return found
 
 
-# names available as reference roots without being a node
-_BUILTINS = {"trigger", "item", "approval_threshold"}
+_BUILTIN = {"trigger", "item", "approval_threshold"}
 
 
 def validate(spec: WorkflowSpec) -> ValidationResult:
@@ -42,10 +32,9 @@ def validate(spec: WorkflowSpec) -> ValidationResult:
     if len(ids) != len(spec.nodes):
         errors.append(ValidationError(node_id=None, reason="duplicate node ids"))
 
-    known_roots = ids | _BUILTINS | set(spec.variables.keys())
+    known_roots = ids | _BUILTIN | set(spec.variables.keys())
 
     for node in spec.nodes:
-        # connector existence
         if node.type == NodeType.connector:
             if not node.connector:
                 errors.append(ValidationError(node_id=node.id, reason="connector node missing connector name"))
@@ -54,31 +43,25 @@ def validate(spec: WorkflowSpec) -> ValidationResult:
                     ValidationError(node_id=node.id, reason=f"unknown connector '{node.connector}'")
                 )
 
-        # depends_on targets exist
         for dep in node.depends_on:
             if dep not in ids:
                 errors.append(ValidationError(node_id=node.id, reason=f"depends_on unknown node '{dep}'"))
 
-        # branch / loop targets exist
         for tgt in [*node.true_branch, *node.false_branch, *node.loop_body]:
             if tgt not in ids:
                 errors.append(ValidationError(node_id=node.id, reason=f"branch/loop target '{tgt}' does not exist"))
 
-        # conditional / for_each shape
         if node.type == NodeType.conditional and not node.condition:
             errors.append(ValidationError(node_id=node.id, reason="conditional node missing condition"))
         if node.type == NodeType.for_each and not node.iterate_over:
             errors.append(ValidationError(node_id=node.id, reason="for_each node missing iterate_over"))
 
-        # variable references resolve to a real prior node / builtin
         for ref in _refs_in(node.config) | _refs_in(node.condition or "") | _refs_in(node.iterate_over or ""):
             if ref not in known_roots:
                 errors.append(
                     ValidationError(node_id=node.id, reason=f"reference to unknown source '{ref}'")
                 )
 
-    # cycle detection: build DAG from depends_on, ignore edges that are part of
-    # a for_each loop body (those are legal back-references).
     loop_edges = set()
     for node in spec.nodes:
         if node.type == NodeType.for_each:

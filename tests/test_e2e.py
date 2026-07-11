@@ -1,5 +1,3 @@
-"""End-to-end coverage of the demo arc: build -> refine -> explain -> break ->
-self-heal -> version history. Runs fully offline (stub LLM + in-memory store)."""
 import asyncio
 
 import pytest
@@ -25,12 +23,11 @@ def test_generate_invoice_workflow():
     body = r.json()
     assert body["status"] == "validated"
     ids = [n["id"] for n in body["spec"]["nodes"]]
-    assert "check_amount" in ids  # conditional present
+    assert "check_amount" in ids
     assert any(n["type"] == "conditional" for n in body["spec"]["nodes"])
 
 
 def test_clarify_flow():
-    # a Slack-only prompt with no channel triggers a critic question
     r = client.post("/workflows/generate", json={"prompt": "Send a slack message when something happens"})
     body = r.json()
     assert body["status"] == "needs_clarification"
@@ -75,7 +72,6 @@ def test_revert():
     client.post(f"/workflows/{wid}/edit", json={"instruction": "add a step"})
     rev = client.post(f"/workflows/{wid}/revert/{v0}").json()
     assert rev["reverted_to"] == v0
-    # revert is append-only: a new version is created
     assert rev["new_version"] != v0
 
 

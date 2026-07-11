@@ -1,4 +1,3 @@
-"""Run-context resolution: {{ node.field }} templating + safe condition eval."""
 from __future__ import annotations
 
 import ast
@@ -21,9 +20,6 @@ def _lookup(path: str, context: dict[str, Any]) -> Any:
 
 
 def resolve(value: Any, context: dict[str, Any]) -> Any:
-    """Recursively resolve {{...}} templates in strings/dicts/lists.
-    A string that is exactly one template returns the raw referenced value
-    (preserving numbers); otherwise references are stringified inline."""
     if isinstance(value, str):
         m = _TEMPLATE.fullmatch(value.strip())
         if m:
@@ -70,7 +66,6 @@ def _eval_node(node: ast.AST) -> Any:
 
 
 def eval_condition(expr: str, context: dict[str, Any]) -> bool:
-    """Resolve templates then safely evaluate a boolean comparison expression."""
     resolved = resolve(expr, context)
     if isinstance(resolved, bool):
         return resolved
@@ -78,5 +73,4 @@ def eval_condition(expr: str, context: dict[str, Any]) -> bool:
         tree = ast.parse(str(resolved), mode="eval")
         return bool(_eval_node(tree))
     except Exception:
-        # non-evaluable -> treat truthiness of the resolved value
         return bool(resolved) and str(resolved).lower() not in {"none", "false", "0", ""}

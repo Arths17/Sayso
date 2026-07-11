@@ -1,15 +1,3 @@
-"""Thin data-access layer.
-
-The rest of the app NEVER talks to Firestore directly — it goes through
-`get_store()`, which returns either a Firestore-backed store or an in-memory
-store when no credentials are configured. Both implement the same interface,
-so swapping the backend later touches nothing else.
-
-Collection layout (mirrors the spec):
-    workflows/{workflow_id}
-    workflows/{workflow_id}/versions/{version_id}
-    workflows/{workflow_id}/executions/{execution_id}
-"""
 from __future__ import annotations
 
 import json
@@ -21,7 +9,6 @@ from app.config import settings
 
 
 class Store(ABC):
-    # --- workflows ---
     @abstractmethod
     def set_workflow(self, wid: str, data: dict[str, Any]) -> None: ...
     @abstractmethod
@@ -29,7 +16,6 @@ class Store(ABC):
     @abstractmethod
     def list_workflows(self) -> list[dict[str, Any]]: ...
 
-    # --- versions ---
     @abstractmethod
     def add_version(self, wid: str, vid: str, data: dict[str, Any]) -> None: ...
     @abstractmethod
@@ -37,7 +23,6 @@ class Store(ABC):
     @abstractmethod
     def list_versions(self, wid: str) -> list[dict[str, Any]]: ...
 
-    # --- executions ---
     @abstractmethod
     def set_execution(self, wid: str, eid: str, data: dict[str, Any]) -> None: ...
     @abstractmethod
@@ -45,7 +30,6 @@ class Store(ABC):
     @abstractmethod
     def list_executions(self, wid: str) -> list[dict[str, Any]]: ...
 
-    # --- agent decision log (explainability substrate) ---
     @abstractmethod
     def log_decision(self, wid: str, record: dict[str, Any]) -> None: ...
     @abstractmethod
@@ -53,9 +37,6 @@ class Store(ABC):
 
 
 class InMemoryStore(Store):
-    """Offline / test backend. Deep-copies via JSON round-trip to mimic the
-    serialise-on-write semantics of Firestore."""
-
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._workflows: dict[str, dict] = {}
@@ -128,7 +109,7 @@ class FirestoreStore(Store):
                 )
             elif settings.firebase_credentials_path:
                 cred = credentials.Certificate(settings.firebase_credentials_path)
-            else:  # pragma: no cover
+            else:
                 cred = credentials.ApplicationDefault()
             firebase_admin.initialize_app(
                 cred,
@@ -188,7 +169,7 @@ def get_store() -> Store:
         if settings.use_firestore:
             try:
                 _store = FirestoreStore()
-            except Exception as e:  # pragma: no cover
+            except Exception as e:
                 print(f"[sayso] Firestore init failed ({e}); using in-memory store")
                 _store = InMemoryStore()
         else:

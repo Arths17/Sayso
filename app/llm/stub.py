@@ -1,10 +1,3 @@
-"""Deterministic offline "LLM".
-
-This is NOT a real model — it's a heuristic that produces plausible, schema-valid
-JSON so the full agent pipeline (plan → critique → heal → explain) can be
-exercised end-to-end without any API key. Swap in the real OpenRouter client by
-simply setting OPENROUTER_API_KEY; nothing else changes.
-"""
 from __future__ import annotations
 
 import re
@@ -18,13 +11,9 @@ def respond(task: str, context: dict[str, Any]) -> dict[str, Any]:
     return fn(context)
 
 
-# --------------------------------------------------------------------------- #
-# Planner
-# --------------------------------------------------------------------------- #
 def _plan(ctx: dict) -> dict:
     prompt = (ctx.get("prompt") or "").lower()
     answers = ctx.get("answers") or {}
-    # fold any clarification answers into the effective prompt text
     prompt_full = prompt + " " + " ".join(str(v).lower() for v in answers.values())
 
     if "invoice" in prompt_full:
@@ -136,7 +125,6 @@ def _invoice_plan(text: str, answers: dict) -> dict:
 
 
 def _generic_plan(text: str, answers: dict) -> dict:
-    # leave channel empty when none was specified so the critic asks for it
     channel = _channel_from(text, answers) or ""
     nodes = []
     if "sheet" in text or "row" in text:
@@ -192,9 +180,6 @@ def _generic_plan(text: str, answers: dict) -> dict:
     }
 
 
-# --------------------------------------------------------------------------- #
-# Critic
-# --------------------------------------------------------------------------- #
 def _critique(ctx: dict) -> dict:
     spec = ctx.get("spec") or {}
     questions: list[str] = []
@@ -215,16 +200,12 @@ def _critique(ctx: dict) -> dict:
     return {"status": "ok", "questions": [], "reasoning": "All required fields present."}
 
 
-# --------------------------------------------------------------------------- #
-# Healer
-# --------------------------------------------------------------------------- #
 def _heal(ctx: dict) -> dict:
     node = ctx.get("node") or {}
     error = ctx.get("error") or ""
     node_id = node.get("id", "unknown")
     config = dict(node.get("config") or {})
 
-    # Heuristic repairs keyed on the error text.
     if "channel" in error.lower():
         patch = {"config": {**config, "channel": "#general"}}
         expl = f"Node '{node_id}' failed because no Slack channel was set; defaulting to #general."
@@ -249,9 +230,6 @@ def _heal(ctx: dict) -> dict:
     }
 
 
-# --------------------------------------------------------------------------- #
-# Explainer
-# --------------------------------------------------------------------------- #
 def _explain(ctx: dict) -> dict:
     node = ctx.get("node") or {}
     reasoning = node.get("reasoning")
@@ -264,9 +242,6 @@ def _explain(ctx: dict) -> dict:
     return {"explanation": text}
 
 
-# --------------------------------------------------------------------------- #
-# Generic LLM field extraction (used by LLMExtractFields connector, real mode)
-# --------------------------------------------------------------------------- #
 def _extract_fields(ctx: dict) -> dict:
     schema = ctx.get("schema") or {}
     out = {}

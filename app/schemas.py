@@ -1,8 +1,3 @@
-"""Pydantic v2 schemas — the contract every layer speaks.
-
-A UI team can build React Flow visualisation purely off WorkflowSpec + the
-ExecutionLog records, so keep these stable and self-describing.
-"""
 from __future__ import annotations
 
 from enum import Enum
@@ -11,13 +6,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-# --------------------------------------------------------------------------- #
-# Workflow specification (planner output → compiler input)
-# --------------------------------------------------------------------------- #
 class NodeType(str, Enum):
-    # connector-backed nodes resolve by name against the registry
     connector = "connector"
-    # control-flow nodes are first-class graph citizens, not hacks
     conditional = "conditional"
     for_each = "for_each"
     human_approval = "human_approval"
@@ -31,32 +21,23 @@ class RetryPolicy(BaseModel):
 class Node(BaseModel):
     id: str
     type: NodeType = NodeType.connector
-    # For connector nodes this is the connector registry key (e.g. "SlackNotify").
-    # For control nodes it is a control keyword ("if" / "for_each" / "approval").
     connector: str | None = None
     config: dict[str, Any] = Field(default_factory=dict)
     depends_on: list[str] = Field(default_factory=list)
     retry_policy: RetryPolicy = Field(default_factory=RetryPolicy)
 
-    # --- conditional nodes ---
-    # A jinja-ish expression evaluated against the run context, e.g.
-    # "{{ extract.amount }} > 5000". true_branch/false_branch list node ids.
     condition: str | None = None
     true_branch: list[str] = Field(default_factory=list)
     false_branch: list[str] = Field(default_factory=list)
 
-    # --- for_each nodes ---
-    # iterate over a context reference; body node ids run once per item with
-    # `item` bound in context.
     iterate_over: str | None = None
     loop_body: list[str] = Field(default_factory=list)
 
-    # Explainability: the planner emits a hidden reasoning trace per step.
     reasoning: str | None = None
 
 
 class Trigger(BaseModel):
-    type: str = "manual"  # e.g. "GmailTrigger", "manual", "schedule"
+    type: str = "manual"
     config: dict[str, Any] = Field(default_factory=dict)
     reasoning: str | None = None
 
@@ -67,7 +48,6 @@ class WorkflowSpec(BaseModel):
     trigger: Trigger = Field(default_factory=Trigger)
     variables: dict[str, Any] = Field(default_factory=dict)
     nodes: list[Node] = Field(default_factory=list)
-    # top-level planner reasoning about the overall ordering
     reasoning: str | None = None
 
     def node_ids(self) -> list[str]:
@@ -77,18 +57,12 @@ class WorkflowSpec(BaseModel):
         return next((n for n in self.nodes if n.id == node_id), None)
 
 
-# --------------------------------------------------------------------------- #
-# Critic / clarification
-# --------------------------------------------------------------------------- #
 class ClarificationRequest(BaseModel):
     status: Literal["ok", "needs_clarification"]
     questions: list[str] = Field(default_factory=list)
     reasoning: str | None = None
 
 
-# --------------------------------------------------------------------------- #
-# Validator
-# --------------------------------------------------------------------------- #
 class ValidationError(BaseModel):
     node_id: str | None
     reason: str
@@ -99,9 +73,6 @@ class ValidationResult(BaseModel):
     errors: list[ValidationError] = Field(default_factory=list)
 
 
-# --------------------------------------------------------------------------- #
-# Execution
-# --------------------------------------------------------------------------- #
 class NodeStatus(str, Enum):
     pending = "pending"
     running = "running"
@@ -113,8 +84,6 @@ class NodeStatus(str, Enum):
 
 
 class ExecutionLog(BaseModel):
-    """One record per node execution — the substrate for explainability."""
-
     node_id: str
     status: NodeStatus
     start_time: str | None = None
@@ -122,7 +91,6 @@ class ExecutionLog(BaseModel):
     input: Any = None
     output: Any = None
     error: str | None = None
-    # populated for AI-driven nodes / agent decisions
     reasoning: str | None = None
     attempt: int = 1
 
@@ -148,21 +116,14 @@ class Execution(BaseModel):
     pending_heal: "HealPatch | None" = None
 
 
-# --------------------------------------------------------------------------- #
-# Self-healing
-# --------------------------------------------------------------------------- #
 class HealPatch(BaseModel):
     node_id: str
     error: str
-    # JSON-merge-style patch applied to the failed node's config/fields
     patch: dict[str, Any] = Field(default_factory=dict)
     diff_explanation: str
     reasoning: str | None = None
 
 
-# --------------------------------------------------------------------------- #
-# Version history
-# --------------------------------------------------------------------------- #
 class WorkflowVersion(BaseModel):
     id: str
     workflow_id: str
@@ -181,9 +142,6 @@ class WorkflowRecord(BaseModel):
     updated_at: str | None = None
 
 
-# --------------------------------------------------------------------------- #
-# API request/response envelopes
-# --------------------------------------------------------------------------- #
 class GenerateRequest(BaseModel):
     prompt: str
 

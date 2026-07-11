@@ -142,6 +142,7 @@ class WorkflowRecord(BaseModel):
     current_version_id: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
+    clarification_answers: dict[str, str] = Field(default_factory=dict)
 
 
 class GenerateRequest(BaseModel):

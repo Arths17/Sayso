@@ -32,6 +32,15 @@ def update_spec(workflow_id: str, spec: WorkflowSpec, message: str) -> WorkflowR
     return get_workflow(workflow_id)
 
 
+def save_clarification_answers(workflow_id: str, answers: dict[str, str]) -> None:
+    store = get_store()
+    data = store.get_workflow(workflow_id)
+    if data is None:
+        return
+    data["clarification_answers"] = answers
+    store.set_workflow(workflow_id, data)
+
+
 def save_execution(execution: Execution) -> None:
     execution.updated_at = now_iso()
     get_store().set_execution(

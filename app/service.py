@@ -36,9 +36,11 @@ def clarify(workflow_id: str, answers: dict[str, str]) -> GenerateResponse:
     record = repository.get_workflow(workflow_id)
     if not record:
         raise KeyError(workflow_id)
-    spec = planner.plan(record.prompt, answers)
+    merged_answers = {**record.clarification_answers, **answers}
+    spec = planner.plan(record.prompt, merged_answers)
     repository.update_spec(workflow_id, spec, message="clarified")
-    repository.log_decision(workflow_id, "planner", {"answers": answers, "reasoning": spec.reasoning})
+    repository.save_clarification_answers(workflow_id, merged_answers)
+    repository.log_decision(workflow_id, "planner", {"answers": merged_answers, "reasoning": spec.reasoning})
 
     crit = critic.critique(spec)
     repository.log_decision(workflow_id, "critic", crit.model_dump())

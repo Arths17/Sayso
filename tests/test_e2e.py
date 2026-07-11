@@ -37,6 +37,19 @@ def test_clarify_flow():
     assert r2.json()["status"] == "validated"
 
 
+def test_clarify_accumulates_answers_across_rounds():
+    r = client.post("/workflows/generate", json={"prompt": "Send a slack message when something happens"})
+    wid = r.json()["workflow_id"]
+    client.post(f"/workflows/{wid}/clarify", json={"answers": {"unrelated question": "unrelated answer"}})
+    r2 = client.post(f"/workflows/{wid}/clarify", json={"answers": {"which channel": "post to #ops"}})
+    assert r2.json()["status"] == "validated"
+    record = repository.get_workflow(wid)
+    assert record.clarification_answers == {
+        "unrelated question": "unrelated answer",
+        "which channel": "post to #ops",
+    }
+
+
 def test_dry_run_and_status():
     r = client.post("/workflows/generate", json={"prompt": "Process invoices, notify #finance"})
     wid = r.json()["workflow_id"]

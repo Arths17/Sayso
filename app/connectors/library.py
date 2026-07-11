@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 
 from app.connectors.base import Connector, ConnectorError, ConnectorResult
+from app.connectors.ssrf_guard import assert_public_url
 
 _GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me"
 _DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3/files"
@@ -214,6 +215,7 @@ class HTTPRequest(Connector):
         url = config.get("url")
         if not url:
             raise ConnectorError("url not specified")
+        assert_public_url(url)
         with httpx.Client(timeout=30) as c:
             r = c.request(method, url, json=config.get("json"), headers=config.get("headers"))
         return ConnectorResult(

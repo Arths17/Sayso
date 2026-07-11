@@ -278,6 +278,68 @@ def test_google_oauth_callback_rejects_invalid_state():
     assert r.status_code == 400
 
 
+def test_ssrf_guard_blocks_private_ip(monkeypatch):
+    import socket
+
+    from app.connectors.base import ConnectorError
+    from app.connectors.ssrf_guard import assert_public_url
+
+    monkeypatch.setattr(
+        socket, "getaddrinfo",
+        lambda *a, **k: [(socket.AF_INET, None, None, "", ("127.0.0.1", 0))],
+    )
+    with pytest.raises(ConnectorError):
+        assert_public_url("http://example.com/")
+
+
+def test_ssrf_guard_blocks_metadata_ip(monkeypatch):
+    import socket
+
+    from app.connectors.base import ConnectorError
+    from app.connectors.ssrf_guard import assert_public_url
+
+    monkeypatch.setattr(
+        socket, "getaddrinfo",
+        lambda *a, **k: [(socket.AF_INET, None, None, "", ("169.254.169.254", 0))],
+    )
+    with pytest.raises(ConnectorError):
+        assert_public_url("http://sneaky.example.com/")
+
+
+def test_ssrf_guard_allows_public_ip(monkeypatch):
+    import socket
+
+    from app.connectors.ssrf_guard import assert_public_url
+
+    monkeypatch.setattr(
+        socket, "getaddrinfo",
+        lambda *a, **k: [(socket.AF_INET, None, None, "", ("93.184.216.34", 0))],
+    )
+    assert_public_url("http://example.com/")  # should not raise
+
+
+def test_ssrf_guard_blocks_non_http_scheme():
+    from app.connectors.base import ConnectorError
+    from app.connectors.ssrf_guard import assert_public_url
+
+    with pytest.raises(ConnectorError):
+        assert_public_url("file:///etc/passwd")
+
+
+def test_http_request_real_run_blocked_for_private_url(monkeypatch):
+    import socket
+
+    from app.connectors.base import ConnectorError
+    from app.connectors.library import HTTPRequest
+
+    monkeypatch.setattr(
+        socket, "getaddrinfo",
+        lambda *a, **k: [(socket.AF_INET, None, None, "", ("127.0.0.1", 0))],
+    )
+    with pytest.raises(ConnectorError):
+        HTTPRequest().run({"url": "http://localhost/admin"}, {})
+
+
 def test_slack_notify_real_run_without_token_raises():
     from app.connectors.base import ConnectorError
     from app.connectors.library import SlackNotify

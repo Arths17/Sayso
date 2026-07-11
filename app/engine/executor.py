@@ -1,19 +1,4 @@
-"""Execution engine.
-
-Walks the compiled DAG in dependency order, running independent nodes
-concurrently. State is persisted to the store after EVERY node, so a long
-workflow can be resumed across multiple (serverless) invocations rather than
-needing one continuous process.
-
-- dry_run: connectors return realistic mock data (via MockConnector).
-- conditionals enable only the taken branch; unreached nodes are skipped.
-- for_each runs its loop body once per item with `item` bound in context.
-- human_approval gates auto-approve unless `auto_approve=False` on a real run,
-  in which case execution pauses (awaiting_approval) until the API's
-  /approve endpoint resolves it.
-- on real-run node failure the Self-Healing agent proposes a patch and the
-  execution pauses (awaiting_heal_approval) instead of dying.
-"""
+"""Execution engine."""
 from __future__ import annotations
 
 import asyncio
@@ -198,9 +183,6 @@ async def _execute_node(
 
 
 async def _run_body_node(node: Node, context: dict, dry_run: bool, iter_disabled: set[str]):
-    """Execute one node inside a for_each iteration. Conditionals disable their
-    untaken branch for the rest of this iteration; approvals auto-approve
-    (pausing mid-loop for a human is out of scope for this MVP)."""
     if node.type == NodeType.conditional:
         taken = eval_condition(node.condition or "false", context)
         not_taken = node.false_branch if taken else node.true_branch
@@ -227,8 +209,6 @@ def _trigger_output(spec: WorkflowSpec, dry_run: bool) -> dict:
 
 
 async def apply_heal_and_resume(spec: WorkflowSpec, execution: Execution) -> Execution:
-    """Apply the pending patch to the failing node, re-validate the patched
-    spec, and either resume execution or reject the patch back to the caller."""
     patch = execution.pending_heal
     if not patch:
         return execution
@@ -247,7 +227,6 @@ async def apply_heal_and_resume(spec: WorkflowSpec, execution: Execution) -> Exe
         repository.save_execution(execution)
         return execution
 
-    # mutate spec in place so downstream refs and re-run use the patched node
     spec.nodes = candidate_nodes
     spec.nodes = [healed if n.id == patch.node_id else n for n in spec.nodes]
     execution.pending_heal = None
@@ -256,7 +235,6 @@ async def apply_heal_and_resume(spec: WorkflowSpec, execution: Execution) -> Exe
 
 
 async def apply_approval_and_resume(spec: WorkflowSpec, execution: Execution, approved: bool) -> Execution:
-    """Resolve a paused human_approval node, then continue or halt the execution."""
     node_id = execution.pending_approval_node_id
     if not node_id:
         return execution

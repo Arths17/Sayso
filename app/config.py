@@ -28,9 +28,6 @@ class Settings:
     )
     llm_max_retries: int = int(os.getenv("SAYSO_LLM_MAX_RETRIES", "2"))
 
-    # --- Local PyTorch fallback (used only when OpenRouter itself is
-    # unreachable — network error / non-2xx after retries). Requires
-    # requirements-local-llm.txt; silently unavailable otherwise. ---
     local_fallback_enabled: bool = _bool("SAYSO_LOCAL_FALLBACK_ENABLED", True)
     local_fallback_model: str = os.getenv(
         "SAYSO_LOCAL_FALLBACK_MODEL", "Qwen/Qwen2.5-0.5B-Instruct"
@@ -42,10 +39,6 @@ class Settings:
     )
     firebase_project_id: str | None = os.getenv("FIREBASE_PROJECT_ID")
 
-    # --- Connectors ---
-    # Manual override: when true, every connector returns mock data even on a
-    # real (non-dry-run) execution. Off by default so /run behaves like a
-    # real run; set this to force-mock in environments without live credentials.
     force_mock_connectors: bool = _bool("SAYSO_FORCE_MOCK_CONNECTORS", False)
 
     @property

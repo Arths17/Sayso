@@ -4,7 +4,9 @@ import base64
 import binascii
 import json
 import re
+from email.message import EmailMessage
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -80,14 +82,21 @@ class GmailSend(Connector):
     def run(self, config, context):
         _require(config, ["to", "body"])
         headers = _google_auth_header(self.credentials, "gmail", context)
-        message = (
-            f"To: {config['to']}\r\nSubject: {config.get('subject', '')}\r\n\r\n{config['body']}"
-        )
-        raw = base64.urlsafe_b64encode(message.encode()).decode()
+        to = config["to"]
+        subject = config.get("subject", "")
+        if any(c in "\r\n" for c in to) or any(c in "\r\n" for c in subject):
+            raise ConnectorError("'to' and 'subject' must not contain newlines")
+
+        msg = EmailMessage()
+        msg["To"] = to
+        msg["Subject"] = subject
+        msg.set_content(config["body"])
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+
         with httpx.Client(timeout=30, headers=headers) as c:
             r = c.post(f"{_GMAIL}/messages/send", json={"raw": raw})
             r.raise_for_status()
-        return ConnectorResult(output={"sent": True, "to": config["to"]})
+        return ConnectorResult(output={"sent": True, "to": to})
 
     def mock(self, config, context):
         return ConnectorResult(output={"sent": True, "to": config.get("to", "a@b.com")})
@@ -128,10 +137,11 @@ class SheetsAppend(Connector):
         headers = _google_auth_header(self.credentials, "sheets", context)
         row = config.get("row", {})
         values = [list(row.values())] if isinstance(row, dict) else [row]
-        range_ = config.get("range", "A1")
+        spreadsheet_id = quote(config["spreadsheet_id"], safe="")
+        range_ = quote(config.get("range", "A1"), safe="")
         with httpx.Client(timeout=30, headers=headers) as c:
             r = c.post(
-                f"{_SHEETS}/{config['spreadsheet_id']}/values/{range_}:append",
+                f"{_SHEETS}/{spreadsheet_id}/values/{range_}:append",
                 params={"valueInputOption": "USER_ENTERED"},
                 json={"values": values},
             )
@@ -158,9 +168,10 @@ class SheetsReadRows(Connector):
         if not config.get("spreadsheet_id"):
             raise ConnectorError("spreadsheet_id not found")
         headers = _google_auth_header(self.credentials, "sheets", context)
-        range_ = config.get("range", "Sheet1")
+        spreadsheet_id = quote(config["spreadsheet_id"], safe="")
+        range_ = quote(config.get("range", "Sheet1"), safe="")
         with httpx.Client(timeout=30, headers=headers) as c:
-            r = c.get(f"{_SHEETS}/{config['spreadsheet_id']}/values/{range_}")
+            r = c.get(f"{_SHEETS}/{spreadsheet_id}/values/{range_}")
             r.raise_for_status()
             values = r.json().get("values", [])
         if not values:

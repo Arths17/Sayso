@@ -449,6 +449,65 @@ def test_google_connector_rejects_run_without_authenticated_uid():
         GmailSend().run({"to": "a@b.com", "body": "hi"}, {})
 
 
+def test_gmail_send_rejects_header_injection(monkeypatch):
+    from app.connectors.base import ConnectorError
+    from app.connectors.library import GmailSend
+
+    monkeypatch.setenv("GMAIL_TOKEN", "fake-gmail-token")
+    context = {"_uid": "dev-user"}
+
+    with pytest.raises(ConnectorError):
+        GmailSend().run(
+            {"to": "a@b.com", "subject": "hi\r\nBcc: attacker@evil.com", "body": "hi"},
+            context,
+        )
+    with pytest.raises(ConnectorError):
+        GmailSend().run(
+            {"to": "a@b.com\r\nBcc: attacker@evil.com", "body": "hi"},
+            context,
+        )
+
+
+def test_sheets_append_escapes_url_path_segments(monkeypatch):
+    import httpx as httpx_module
+
+    from app.connectors.library import SheetsAppend
+
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"updates": {"updatedRange": "A2"}}
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
+
+        def post(self, url, **k):
+            captured["url"] = url
+            return FakeResponse()
+
+    monkeypatch.setenv("SHEETS_TOKEN", "fake-sheets-token")
+    monkeypatch.setattr(httpx_module, "Client", FakeClient)
+
+    SheetsAppend().run(
+        {"spreadsheet_id": "abc&evil=1", "range": "Sheet 1!A1", "row": {"a": 1}},
+        {"_uid": "dev-user"},
+    )
+    assert "&evil=1" not in captured["url"]
+    assert "abc%26evil%3D1" in captured["url"]
+    assert "Sheet%201%21A1" in captured["url"]
+
+
 def test_validator_rejects_unknown_connector():
     from app.agents import validator
     spec = WorkflowSpec(name="x", nodes=[

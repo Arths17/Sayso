@@ -1,7 +1,106 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+
+const NS = "http://www.w3.org/2000/svg";
+const DOT = 2;
+const TARGET = 12;
+const DOT_COLOR = "#343940";
+
+function dotPositions(length: number) {
+  const span = Math.max(0, length - DOT);
+  const n = Math.max(1, Math.round(span / TARGET));
+  const step = span / n;
+  const arr: number[] = [];
+  for (let i = 0; i <= n; i++) arr.push(Math.round(i * step));
+  return arr;
+}
+
+function DottedFrame() {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const svg = svgRef.current;
+    if (!wrap || !svg) return;
+
+    const draw = () => {
+      const w = Math.round(wrap.offsetWidth);
+      const h = Math.round(wrap.offsetHeight);
+      if (!w || !h) return;
+
+      svg.setAttribute("width", String(w));
+      svg.setAttribute("height", String(h));
+      svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+      const addDot = (x: number, y: number) => {
+        const r = document.createElementNS(NS, "rect");
+        r.setAttribute("x", String(x));
+        r.setAttribute("y", String(y));
+        r.setAttribute("width", String(DOT));
+        r.setAttribute("height", String(DOT));
+        r.setAttribute("fill", DOT_COLOR);
+        r.setAttribute("shape-rendering", "crispEdges");
+        svg.appendChild(r);
+      };
+
+      const xs = dotPositions(w);
+      const ys = dotPositions(h);
+      const lastY = ys[ys.length - 1];
+
+      xs.forEach((x) => {
+        addDot(x, 0);
+        addDot(x, h - DOT);
+      });
+
+      ys.forEach((y) => {
+        if (y === 0 || y === lastY) return;
+        addDot(0, y);
+        addDot(w - DOT, y);
+      });
+    };
+
+    draw();
+    const ro = new ResizeObserver(draw);
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div ref={wrapRef} className="login_dotted-frame">
+      <svg ref={svgRef} className="login_dotted-frame-svg" />
+    </div>
+  );
+}
+
+function NoiseCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const size = 128;
+    canvas.width = size;
+    canvas.height = size;
+    const imageData = ctx.createImageData(size, size);
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      const shade = Math.floor(Math.random() * 255);
+      imageData.data[i] = shade;
+      imageData.data[i + 1] = shade;
+      imageData.data[i + 2] = shade;
+      imageData.data[i + 3] = 255;
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }, []);
+
+  return <canvas ref={canvasRef} className="login_noise" />;
+}
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -34,9 +133,11 @@ export default function LoginPage() {
 
   return (
     <main className="login_wrap">
+      <NoiseCanvas />
       <div className="padding-global login_body">
         <div className="container-1400 w-container login_container">
           <div className="login_card">
+            <DottedFrame />
             <a href="/" className="login_brand login_reveal login_reveal-2">
               <span className="ts-14px color-white mono all-caps">Sayso</span>
             </a>
@@ -214,9 +315,19 @@ export default function LoginPage() {
           content: "";
           position: absolute;
           inset: 0;
-          background-image: radial-gradient(ellipse 80% 50% at 50% 0%, #298dff 0%, rgba(41, 141, 255, 0.35) 35%, rgba(0, 0, 0, 0) 70%);
+          background-image: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(41, 141, 255, 0.28) 0%, rgba(41, 141, 255, 0.08) 40%, rgba(0, 0, 0, 0) 70%);
           opacity: 0;
           animation: loginGlowIn 1.4s ease-out 0.1s forwards;
+        }
+
+        .login_noise {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          opacity: 0.12;
+          mix-blend-mode: soft-light;
+          pointer-events: none;
         }
 
         .login_card {
@@ -256,9 +367,20 @@ export default function LoginPage() {
           width: 100%;
           max-width: 26.5em;
           padding: 3em 2.5em;
-          border: 1px solid #222529;
           background-color: #131518;
           box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55);
+        }
+
+        .login_dotted-frame {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+        }
+
+        .login_dotted-frame-svg {
+          position: absolute;
+          inset: 0;
+          display: block;
         }
 
         .login_brand {

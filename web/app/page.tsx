@@ -13,23 +13,23 @@ const scriptItems = [
     "inline": null
   },
   {
-    "src": "/webflow/sui-v2.schunk.36b8fb49256177c8.js",
+    "src": "/webflow/sayso-v2.schunk.36b8fb49256177c8.js",
     "inline": null
   },
   {
-    "src": "/webflow/sui-v2.schunk.288df1f54663a3bc.js",
+    "src": "/webflow/sayso-v2.schunk.288df1f54663a3bc.js",
     "inline": null
   },
   {
-    "src": "/webflow/sui-v2.schunk.3628d3ef9525bbf8.js",
+    "src": "/webflow/sayso-v2.schunk.3628d3ef9525bbf8.js",
     "inline": null
   },
   {
-    "src": "/webflow/sui-v2.schunk.2e9a6c851ce4cf63.js",
+    "src": "/webflow/sayso-v2.schunk.2e9a6c851ce4cf63.js",
     "inline": null
   },
   {
-    "src": "/webflow/sui-v2.412620ba.654c8709c33a3bdb.js",
+    "src": "/webflow/sayso-v2.412620ba.654c8709c33a3bdb.js",
     "inline": null
   },
   {
@@ -86,7 +86,7 @@ const scriptItems = [
   },
   {
     "src": null,
-    "inline": "window.onGsapReady = function(cb) {\n    if (window.__gsapReady) cb();\n    else window.addEventListener('gsapReady', cb, { once: true });\n  };\n\n  function loadGsap() {\n    var base = 'https://cdn.prod.website-files.com/gsap/3.15.0/';\n    var files = [\n      'gsap.min.js',\n      'ScrollTrigger.min.js',\n      'SplitText.min.js',\n      'CustomEase.min.js',\n      'InertiaPlugin.min.js',\n      'Observer.min.js',\n      'Draggable.min.js',\n      'DrawSVGPlugin.min.js',\n      'ScrambleTextPlugin.min.js',\n      'MorphSVGPlugin.min.js',\n      'Flip.min.js'\n    ];\n    var loaded = 0;\n    files.forEach(function(file) {\n      var s = document.createElement('script');\n      s.src = base + file;\n      s.onload = function() {\n        if (++loaded === files.length) {\n          gsap.registerPlugin(\n            ScrollTrigger, SplitText, CustomEase, InertiaPlugin,\n            Observer, Draggable, DrawSVGPlugin, ScrambleTextPlugin,\n            MorphSVGPlugin, Flip\n          );\n          window.__gsapReady = true;\n          window.dispatchEvent(new CustomEvent('gsapReady'));\n        }\n      };\n      s.onerror = function() {\n        console.error('Failed to load GSAP file:', file);\n      };\n      document.head.appendChild(s);\n    });\n  }\n\n  function loadSlater() {\n    var src = window.location.host.includes(\"webflow.io\")\n      ? \"https://slater.app/17378.js\"\n      : \"https://assets.slater.app/slater/17378.js?v=1.0\";\n    var s = document.createElement('script');\n    s.src = src;\n    s.type = 'module';\n    document.head.appendChild(s);\n  }\n\n  function startDeferredLoading() {\n    loadGsap();                      \n    window.onGsapReady(loadSlater); \n  }\n\n  if (document.readyState === 'complete') {\n    setTimeout(startDeferredLoading, 100);\n  } else {\n    window.addEventListener('load', function() {\n      setTimeout(startDeferredLoading, 100);\n    });\n  }"
+    "inline": "window.onWeglotReady = function() {};\n  window.onGsapReady = function(cb) {\n    if (window.__gsapReady) cb();\n    else window.addEventListener('gsapReady', cb, { once: true });\n  };\n\n  function loadGsap() {\n    var base = 'https://cdn.prod.website-files.com/gsap/3.15.0/';\n    var files = [\n      'gsap.min.js',\n      'ScrollTrigger.min.js',\n      'SplitText.min.js',\n      'CustomEase.min.js',\n      'InertiaPlugin.min.js',\n      'Observer.min.js',\n      'Draggable.min.js',\n      'DrawSVGPlugin.min.js',\n      'ScrambleTextPlugin.min.js',\n      'MorphSVGPlugin.min.js',\n      'Flip.min.js'\n    ];\n    var loaded = 0;\n    files.forEach(function(file) {\n      var s = document.createElement('script');\n      s.src = base + file;\n      s.onload = function() {\n        if (++loaded === files.length) {\n          gsap.registerPlugin(\n            ScrollTrigger, SplitText, CustomEase, InertiaPlugin,\n            Observer, Draggable, DrawSVGPlugin, ScrambleTextPlugin,\n            MorphSVGPlugin, Flip\n          );\n          window.__gsapReady = true;\n          window.dispatchEvent(new CustomEvent('gsapReady'));\n        }\n      };\n      s.onerror = function() {\n        console.error('Failed to load GSAP file:', file);\n      };\n      document.head.appendChild(s);\n    });\n  }\n\n  function loadSlater() {\n    var src = window.location.host.includes(\"webflow.io\")\n      ? \"https://slater.app/17378.js\"\n      : \"https://assets.slater.app/slater/17378.js?v=1.0\";\n    var s = document.createElement('script');\n    s.src = src;\n    s.type = 'module';\n    document.head.appendChild(s);\n  }\n\n  function startDeferredLoading() {\n    loadGsap();                      \n    window.onGsapReady(loadSlater); \n  }\n\n  if (document.readyState === 'complete') {\n    setTimeout(startDeferredLoading, 100);\n  } else {\n    window.addEventListener('load', function() {\n      setTimeout(startDeferredLoading, 100);\n    });\n  }"
   },
   {
     "src": null,

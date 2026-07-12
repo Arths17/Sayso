@@ -39,7 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link href="/webflow/sui-v2.shared.f0ac634c6.min.css" rel="stylesheet" />
+        <link href="/webflow/sayso-v2.shared.f0ac634c6.min.css" rel="stylesheet" />
         <link href="https://fonts.googleapis.com" rel="preconnect" />
         <link href="https://fonts.gstatic.com" rel="preconnect" crossOrigin="anonymous" />
         <link

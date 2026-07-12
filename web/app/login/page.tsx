@@ -2,6 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+} from "firebase/auth";
+import { FirebaseError } from "firebase/app";
+import { auth, googleProvider } from "@/lib/firebase";
+import { apiClient } from "@/app/api/index";
 
 const NS = "http://www.w3.org/2000/svg";
 const DOT = 2;
@@ -126,10 +135,74 @@ const GoogleIcon = () => (
   </svg>
 );
 
+function authErrorMessage(err: unknown): string {
+  if (err instanceof FirebaseError) {
+    switch (err.code) {
+      case "auth/wrong-password":
+      case "auth/invalid-credential":
+        return "Incorrect password.";
+      case "auth/weak-password":
+        return "Password must be at least 6 characters.";
+      case "auth/invalid-email":
+        return "Enter a valid email address.";
+      case "auth/too-many-requests":
+        return "Too many attempts. Try again later.";
+      case "auth/popup-closed-by-user":
+        return "Google sign-in was cancelled.";
+      default:
+        return "Something went wrong. Please try again.";
+    }
+  }
+  return "Something went wrong. Please try again.";
+}
+
 export default function LoginPage() {
+  const router = useRouter();
   const [step, setStep] = useState<"email" | "password">("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const afterAuth = async () => {
+    const token = await auth.currentUser?.getIdToken();
+    if (token) apiClient.setToken(token);
+    router.push("/");
+  };
+
+  const handleGoogle = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await signInWithPopup(auth, googleProvider);
+      await afterAuth();
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordSubmit = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (err) {
+        if (err instanceof FirebaseError && err.code === "auth/user-not-found") {
+          await createUserWithEmailAndPassword(auth, email, password);
+        } else {
+          throw err;
+        }
+      }
+      await afterAuth();
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main className="login_wrap">
@@ -155,6 +228,8 @@ export default function LoginPage() {
                   <button
                     type="button"
                     className="cta-button login_google login_reveal login_reveal-5"
+                    onClick={handleGoogle}
+                    disabled={loading}
                   >
                     <GoogleIcon />
                     Continue with Google
@@ -168,6 +243,7 @@ export default function LoginPage() {
                     className="login_form login_reveal login_reveal-7"
                     onSubmit={(e) => {
                       e.preventDefault();
+                      setError(null);
                       if (email) setStep("password");
                     }}
                   >
@@ -187,6 +263,8 @@ export default function LoginPage() {
                       />
                     </div>
 
+                    {error && <p className="ts-12px login_error">{error}</p>}
+
                     <button type="submit" className="cta-button is--blue login_submit">
                       Continue
                     </button>
@@ -197,7 +275,10 @@ export default function LoginPage() {
                   <button
                     type="button"
                     className="login_back login_reveal login_reveal-1"
-                    onClick={() => setStep("email")}
+                    onClick={() => {
+                      setError(null);
+                      setStep("email");
+                    }}
                   >
                     <span className="ts-12px color-white-50 mono all-caps">← Back</span>
                   </button>
@@ -213,6 +294,7 @@ export default function LoginPage() {
                     className="login_form login_reveal login_reveal-4"
                     onSubmit={(e) => {
                       e.preventDefault();
+                      handlePasswordSubmit();
                     }}
                   >
                     <div className="login_label-row">
@@ -237,8 +319,10 @@ export default function LoginPage() {
                       />
                     </div>
 
-                    <button type="submit" className="cta-button is--blue login_submit">
-                      Sign in
+                    {error && <p className="ts-12px login_error">{error}</p>}
+
+                    <button type="submit" className="cta-button is--blue login_submit" disabled={loading}>
+                      {loading ? "Signing in..." : "Sign in"}
                     </button>
                   </form>
                 </>
@@ -439,6 +523,11 @@ export default function LoginPage() {
 
         .login_forgot:hover {
           color: #298dff;
+        }
+
+        .login_error {
+          margin: 0.875em 0 0;
+          color: #ff6c3d;
         }
 
         .login_submit {

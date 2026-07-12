@@ -1,0 +1,249 @@
+.ts-11px {
+  font-size: 0.6875em;
+  font-weight: 400;
+}
+
+.ts-11px.mono {
+  letter-spacing: -0.02em;
+  font-family: "TWK Everett Mono", Arial, sans-serif;
+  line-height: 1.4;
+}
+
+.app-shell {
+  position: relative;
+  min-height: 100dvh;
+  background-color: var(--color--black);
+  isolation: isolate;
+  overflow-x: clip;
+}
+
+.app-wash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30em;
+  background-image: radial-gradient(
+    ellipse 60% 60% at 50% 0%,
+    rgba(41, 141, 255, 0.24) 0%,
+    rgba(41, 141, 255, 0.08) 45%,
+    rgba(41, 141, 255, 0) 75%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app-body {
+  position: relative;
+  z-index: 1;
+  padding-top: 9em;
+  padding-bottom: 6em;
+}
+
+.app-body.is--narrow .container-1400 {
+  max-width: 48em;
+}
+
+.app-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--gaps--gap-16);
+  padding-bottom: var(--gaps--gap-40);
+}
+
+.app-eyebrow {
+  display: inline-flex;
+}
+
+.app-headline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gaps--gap-24);
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.app-head .h3-60px {
+  margin: 0;
+  letter-spacing: -0.05em;
+  color: var(--color--white);
+}
+
+.app-dek {
+  color: var(--color--grey-500);
+  letter-spacing: -0.02em;
+  max-width: 48ch;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.app-ink {
+  color: var(--color--grey-500);
+  letter-spacing: -0.02em;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.app-divider {
+  display: block;
+  width: 100%;
+}
+
+.app-rows {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--gaps--gap-32);
+}
+
+.app-rows .f_grid_2 {
+  overflow: visible;
+}
+
+.app-rows .tabs_num {
+  color: var(--color--grey-600);
+}
+
+.app-rows .tabs_wrapper {
+  padding-top: var(--gaps--gap-24);
+  padding-bottom: var(--gaps--gap-24);
+  gap: var(--gaps--gap-12);
+}
+
+.app-row-link {
+  text-decoration: none;
+  display: block;
+}
+
+.app-row-link .content_devider .h3-60px {
+  color: var(--color--white);
+  transition: color 0.2s;
+}
+
+.app-row-link:hover .content_devider .h3-60px {
+  color: var(--color--primary-blue);
+}
+
+.app-row-stat {
+  color: var(--color--primary-blue);
+  white-space: nowrap;
+}
+
+.app-section {
+  padding-top: var(--gaps--gap-48);
+}
+
+.app-section-title {
+  color: var(--color--grey-500);
+  margin: 0 0 var(--gaps--gap-16);
+}
+
+.app-panel {
+  border: 1px solid var(--color--grey-800);
+  background-color: var(--color--grey-900);
+  padding: var(--gaps--gap-32);
+}
+
+.app-panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gaps--gap-24);
+  padding: var(--gaps--gap-16) 0;
+  border-bottom: 1px solid var(--color--grey-800);
+}
+
+.app-panel-row:first-child {
+  padding-top: 0;
+}
+
+.app-panel-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.app-tr {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.25fr;
+  gap: var(--gaps--gap-24);
+  align-items: center;
+  padding: var(--gaps--gap-20) 0;
+}
+
+.app-state {
+  color: var(--color--grey-300);
+}
+
+.app-state.is--completed {
+  color: var(--color--white);
+}
+
+.app-state.is--running {
+  color: var(--color--primary-blue);
+}
+
+.app-state.is--failed {
+  color: var(--orange);
+}
+
+.app-state.is--awaiting_heal_approval,
+.app-state.is--awaiting_approval {
+  color: var(--color--primary-blue);
+}
+
+.app-state.is--pending {
+  color: var(--color--grey-500);
+}
+
+.app-empty {
+  padding: 5em 0;
+}
+
+.app-loading {
+  color: var(--color--grey-500);
+  padding: 4em 0;
+}
+
+.app-note {
+  margin: 0 0 var(--gaps--gap-24);
+  color: var(--color--white);
+}
+
+.app-note.is--error {
+  color: var(--orange);
+}
+
+.app-badge {
+  color: var(--color--white);
+  border: 1px solid var(--color--grey-700);
+  padding: var(--gaps--gap-6) var(--gaps--gap-12);
+  white-space: nowrap;
+}
+
+.int_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15em, 1fr));
+  gap: 1px;
+  background-color: var(--color--grey-800);
+  border: 1px solid var(--color--grey-800);
+}
+
+.int_card {
+  background-color: var(--color--black);
+  padding: var(--gaps--gap-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gaps--gap-6);
+}
+
+@media (max-width: 767px) {
+  .app-body {
+    padding-top: 7em;
+  }
+
+  .app-tr {
+    grid-template-columns: 1fr 1fr;
+    row-gap: var(--gaps--gap-8);
+  }
+}

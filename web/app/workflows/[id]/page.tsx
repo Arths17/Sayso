@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { apiClient } from "@/app/api/index";
 import type { Execution, WorkflowRecord } from "@/app/api/index";
-import TopNav from "@/app/components/TopNav";
-import DashedDivider from "@/app/components/DashedDivider";
+import PageShell from "@/app/components/PageShell";
 
 function stateLabel(state: Execution["state"] | null): string {
   if (!state) return "Not run yet";
@@ -56,6 +56,10 @@ export default function WorkflowDetailPage() {
   };
 
   useEffect(() => {
+    if (!auth) {
+      router.push("/login");
+      return;
+    }
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         router.push("/login");
@@ -104,26 +108,20 @@ export default function WorkflowDetailPage() {
   };
 
   return (
-    <main className="wd_wrap">
-      <TopNav />
-
+    <PageShell
+      eyebrow="Workflow"
+      title={workflow?.spec.name || "Workflow"}
+      dek={workflow?.spec.description}
+      loading={!ready}
+    >
       <section className="wd_main">
-        {!ready ? (
-          <p className="ts-13px color-white-50 mono">Loading...</p>
-        ) : error || !workflow ? (
+        {error || !workflow ? (
           <p className="ts-13px wd_error">{error || "Workflow not found."}</p>
         ) : (
           <>
-            <a href="/workflows" className="wd_back">
+            <Link href="/workflows" className="wd_back">
               <span className="ts-12px color-white-50 mono all-caps">&larr; Workflows</span>
-            </a>
-
-            <header className="wd_header">
-              <h1 className="ts-24px color-white mono all-caps wd_title">{workflow.spec.name}</h1>
-              <p className="ts-14px color-white-50 wd_desc">{workflow.spec.description}</p>
-            </header>
-
-            <DashedDivider />
+            </Link>
 
             {executions.length > 0 && (
               <div className="wd_exec-picker">
@@ -263,15 +261,9 @@ export default function WorkflowDetailPage() {
       </section>
 
       <style>{`
-        .wd_wrap {
-          min-height: 100dvh;
-          background-color: var(--color--black);
-        }
-
         .wd_main {
           max-width: 56em;
           margin: 0 auto;
-          padding: 7.5em 3em 4em;
         }
 
         .wd_error {
@@ -480,6 +472,6 @@ export default function WorkflowDetailPage() {
           border-top: 1px solid var(--color--grey-800);
         }
       `}</style>
-    </main>
+    </PageShell>
   );
 }

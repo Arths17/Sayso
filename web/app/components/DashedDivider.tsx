@@ -2,40 +2,17 @@
 
 export default function DashedDivider() {
   return (
-    <div className="dashed-divider">
-      <style>{`
-        .dashed-divider {
-          position: relative;
-          height: 2px;
-          margin: 0.875em 0;
-          background-image: repeating-linear-gradient(
-            to right,
-            var(--color--grey-600) 0,
-            var(--color--grey-600) 2px,
-            transparent 2px,
-            transparent 12px
-          );
-        }
-
-        .dashed-divider::before,
-        .dashed-divider::after {
-          content: "";
-          position: absolute;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 7px;
-          height: 7px;
-          background-color: var(--color--primary-blue);
-        }
-
-        .dashed-divider::before {
-          left: 0;
-        }
-
-        .dashed-divider::after {
-          right: 0;
-        }
-      `}</style>
-    </div>
+    <svg
+      className="app-divider"
+      fill="none"
+      height="8"
+      viewBox="0 0 1401 8"
+      width="100%"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M4.10547 3.73438H1400.3" stroke="#4B515B" strokeDasharray="2 10" strokeWidth="2" />
+      <rect fill="#298DFF" height="6.79492" width="6.79492" x="0.722656" y="0.335938" />
+      <rect fill="#298DFF" height="6.79492" width="6.79492" x="1393.51" y="0.335938" />
+    </svg>
   );
 }

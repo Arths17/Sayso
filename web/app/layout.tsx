@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import PageTransition from "./PageTransition";
+import "./app.css";
 
 export const metadata: Metadata = {
   title: "Sayso | Just Say So",

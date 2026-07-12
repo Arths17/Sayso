@@ -3267,7 +3267,7 @@ a {
   display:flex;
   position:relative
 }
-.hero-section.intro-sui {
+.hero-section.intro-sayso {
   flex-flow:column;
   height:100%;
   padding-top:0;
@@ -4382,7 +4382,7 @@ a {
   padding:.5em;
   display:block
 }
-.heading_blue-icon.smaller.sui_hero {
+.heading_blue-icon.smaller.sayso_hero {
   flex:0 auto;
   max-width:6.25em;
   max-height:6.25em;
@@ -5567,7 +5567,7 @@ a {
 .image-5 {
   height:100%
 }
-.sui_logo {
+.sayso_logo {
   filter:blur();
   object-fit:cover;
   width:33.249em;
@@ -5579,13 +5579,13 @@ a {
   display:block;
   position:relative
 }
-.sui_logo.intro-to-sui {
+.sayso_logo.intro-to-sayso {
   width:100%;
   min-width:auto;
   height:100%;
   min-height:auto
 }
-.sui_logo.home-page {
+.sayso_logo.home-page {
   aspect-ratio:1;
   width:100%;
   min-width:auto;
@@ -5596,10 +5596,10 @@ a {
   z-index:9;
   position:relative
 }
-.sui_wrap {
+.sayso_wrap {
   height:100%
 }
-.sui_wrap.hero-section {
+.sayso_wrap.hero-section {
   background-color:#0000;
   padding-bottom:0;
   transform:scale(1.4)
@@ -8470,7 +8470,7 @@ a {
   position:absolute;
   inset:0%
 }
-.sui_intro {
+.sayso_intro {
   z-index:4;
   justify-content:center;
   align-items:center;
@@ -8527,7 +8527,7 @@ a {
   padding-right:0;
   transform:translateY(20%)
 }
-.sui_background_anim {
+.sayso_background_anim {
   z-index:1;
   object-fit:contain;
   align-self:center;
@@ -8543,7 +8543,7 @@ a {
   width:100%;
   height:100%
 }
-.sui_black_overlay {
+.sayso_black_overlay {
   z-index:1;
   width:100%;
   height:140%;
@@ -11245,7 +11245,7 @@ a {
   align-items:stretch;
   display:flex
 }
-.sui_is_wrapper {
+.sayso_is_wrapper {
   flex-flow:row;
   grid-template-rows:auto;
   grid-template-columns:.25fr 1fr;
@@ -11645,11 +11645,11 @@ a {
   bottom:auto;
   overflow:hidden
 }
-.sui_cases {
+.sayso_cases {
   grid-row-gap:4.5em;
   grid-template-columns:1fr 1fr 1fr 1fr
 }
-.sui_cases.row_1 {
+.sayso_cases.row_1 {
   grid-template-rows:auto
 }
 .paralax_gradient {
@@ -12629,7 +12629,7 @@ a {
 .transformorigincenter {
   transform-origin:50%
 }
-.sui_droplet {
+.sayso_droplet {
   width:1.5em;
   color:var(--color--white)
 }
@@ -20230,7 +20230,7 @@ a {
   line-height:1;
   display:inline-flex
 }
-.suins-link-popup-logo {
+.saysos-link-popup-logo {
   z-index:1;
   width:100%;
   position:relative
@@ -25164,7 +25164,7 @@ a {
 .lofi-logo {
   width:13em
 }
-.suilend-logo {
+.saysolend-logo {
   width:19em
 }
 .bc-24-sponsors-box-logo-6 {
@@ -28452,7 +28452,7 @@ a {
   .custom-h2_block-17.btcfi_heading {
     max-width:48em
   }
-  .sui_cases {
+  .sayso_cases {
     grid-template-columns:1fr 1fr
   }
   .hide-tablet {
@@ -30300,7 +30300,7 @@ a {
     width:90px
   }
   .lofi-logo,
-  .suilend-logo {
+  .saysolend-logo {
     width:120px
   }
   .bc-24-sponsors-box-logo-6 {
@@ -31202,7 +31202,7 @@ a {
     grid-row-gap:.375em;
     max-width:30em
   }
-  .sui_cases {
+  .sayso_cases {
     grid-template-columns:1fr 1fr
   }
   .hamburger-menu_component {
@@ -33392,7 +33392,7 @@ a {
   .hero-section {
     padding-bottom:5em
   }
-  .hero-section.intro-sui {
+  .hero-section.intro-sayso {
     grid-column-gap:4.5em;
     grid-row-gap:4.5em;
     justify-content:flex-start;
@@ -34221,12 +34221,12 @@ a {
   .timeline_current {
     background-image:linear-gradient(#0000 83%,#000 90%),linear-gradient(#000 13%,#0000 40%)
   }
-  .sui_logo {
+  .sayso_logo {
     width:100%;
     min-width:auto;
     min-height:auto
   }
-  .sui_logo.intro-to-sui {
+  .sayso_logo.intro-to-sayso {
     width:29.095em;
     transform:translate(-7.5%)
   }
@@ -34235,12 +34235,12 @@ a {
     padding-bottom:0;
     overflow:visible
   }
-  .sui_wrap {
+  .sayso_wrap {
     flex-flow:column;
     justify-content:center;
     align-items:flex-end
   }
-  .sui_wrap.hero-section {
+  .sayso_wrap.hero-section {
     transform:scale(1)
   }
   .sticky_overlap {
@@ -34683,7 +34683,7 @@ a {
     background-position:0 0;
     background-size:auto
   }
-  .sui_intro {
+  .sayso_intro {
     height:100%
   }
   .custom_bg {
@@ -34712,7 +34712,7 @@ a {
     height:19.938em;
     transform:none
   }
-  .sui_background_anim {
+  .sayso_background_anim {
     width:100%;
     height:auto;
     padding-top:4.5em
@@ -35213,7 +35213,7 @@ a {
   .custom-h2_block-17.btcfi_heading {
     max-width:22em
   }
-  .sui_is_wrapper {
+  .sayso_is_wrapper {
     grid-template-columns:1fr 1fr 1fr
   }
   .arrowpath {
@@ -35427,13 +35427,13 @@ a {
     grid-column-gap:.4em;
     grid-row-gap:.4em
   }
-  .sui_cases {
+  .sayso_cases {
     grid-row-gap:3em;
     flex-flow:column;
     width:100%;
     display:flex
   }
-  .sui_cases.row_1.privacy-grid {
+  .sayso_cases.row_1.privacy-grid {
     grid-row-gap:2em;
     margin-bottom:2.5em
   }
@@ -39832,7 +39832,7 @@ a {
     width:60px
   }
   .lofi-logo,
-  .suilend-logo {
+  .saysolend-logo {
     width:120px
   }
   .bc-24-sponsors-box-logo-6 {

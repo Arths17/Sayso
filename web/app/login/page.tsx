@@ -9,7 +9,7 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
-import { auth, googleProvider } from "@/lib/firebase";
+import { auth, googleProvider, firebaseReady, firebaseAuthMessage } from "@/lib/firebase";
 import { apiClient } from "@/app/api/index";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -165,12 +165,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const afterAuth = async () => {
+    if (!auth) return;
     const token = await auth.currentUser?.getIdToken();
     if (token) apiClient.setToken(token);
-    router.push("/");
+    router.push("/dashboard");
   };
 
   const handleGoogle = async () => {
+    if (!auth || !googleProvider) {
+      setError(firebaseAuthMessage);
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -184,6 +189,10 @@ export default function LoginPage() {
   };
 
   const handlePasswordSubmit = async () => {
+    if (!auth) {
+      setError(firebaseAuthMessage);
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -211,9 +220,9 @@ export default function LoginPage() {
         <div className="container-1400 w-container login_container">
           <div className="login_card">
             <DottedFrame />
-            <a href="/" className="login_brand login_reveal login_reveal-2">
+            <Link href="/" className="login_brand login_reveal login_reveal-2">
               <span className="ts-14px color-white mono all-caps">Sayso</span>
-            </a>
+            </Link>
 
             <div key={step} className="login_step">
               {step === "email" ? (
@@ -264,6 +273,8 @@ export default function LoginPage() {
                     </div>
 
                     {error && <p className="ts-12px login_error">{error}</p>}
+
+                    {!firebaseReady && <p className="ts-12px login_error">{firebaseAuthMessage}</p>}
 
                     <button type="submit" className="cta-button is--blue login_submit">
                       Continue

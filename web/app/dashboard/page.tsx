@@ -12,7 +12,6 @@ export default function DashboardPage() {
   return (
     <div className={styles.shell}>
       <div className={styles.glow} aria-hidden="true" />
-      <div dangerouslySetInnerHTML={{ __html: navbarHtml }} />
       <DashboardClient />
     </div>
   );

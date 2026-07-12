@@ -88,6 +88,11 @@ def edit(workflow_id: str, req: EditRequest, user=Depends(get_current_user)):
     return {"workflow_id": workflow_id, "version": version.id, "diff": version.diff, "spec": record.spec}
 
 
+@router.get("/workflows")
+def list_workflows(user=Depends(get_current_user)):
+    return repository.list_workflows(user.uid)
+
+
 @router.get("/workflows/{workflow_id}")
 def get_workflow(workflow_id: str, user=Depends(get_current_user)):
     return _get_owned_workflow(workflow_id, user)
@@ -109,6 +114,12 @@ async def dry_run(workflow_id: str, user=Depends(get_current_user)):
 @router.post("/workflows/{workflow_id}/run", response_model=RunResponse)
 async def run(workflow_id: str, user=Depends(get_current_user)):
     return await _start_run(workflow_id, dry_run=False, user=user)
+
+
+@router.get("/workflows/{workflow_id}/executions")
+def list_executions(workflow_id: str, user=Depends(get_current_user)):
+    _get_owned_workflow(workflow_id, user)
+    return repository.list_executions(workflow_id)
 
 
 @router.get("/workflows/{workflow_id}/status")

@@ -11,7 +11,6 @@ _CONNECTOR_CLASSES: dict[str, type[Connector]] = {
         library.DriveUpload,
         library.SheetsAppend,
         library.SheetsReadRows,
-        library.SlackNotify,
         library.HTTPRequest,
         library.PDFExtractText,
         library.LLMExtractFields,
@@ -30,7 +29,7 @@ def available() -> list[str]:
 
 
 # Config schema shown to the planner/critic LLMs. Authentication for Gmail/
-# Drive/Sheets/Slack is always resolved automatically by CredentialStore from
+# Drive/Sheets is always resolved automatically by CredentialStore from
 # the caller's connected account (see app/connectors/base.py) — connector
 # config must never include a credentials/connection_id/auth field, so that
 # guidance is stated once here instead of on every connector line.
@@ -40,15 +39,14 @@ _SCHEMA = """\
 - DriveUpload: config.filename (optional), config.content (optional)
 - SheetsAppend: config.spreadsheet_id (required), config.row (optional object), config.range (optional, default "A1")
 - SheetsReadRows: config.spreadsheet_id (required), config.range (optional, default "Sheet1")
-- SlackNotify: config.channel (required, a concrete channel like "#general" — never a template reference), config.text (optional)
 - HTTPRequest: config.url (required), config.method (optional, default GET), config.json (optional), config.headers (optional)
 - PDFExtractText: config.source (required — either a base64-encoded PDF string, or {message_id, attachment_id} from a GmailTrigger output)
 - LLMExtractFields: config.text (required), config.schema (required, e.g. {"vendor": "string", "amount": "number"})
 
 Authentication note: Gmail, Drive, and Sheets connectors authenticate automatically using the
-user's connected Google account (managed in the Integrations tab). Slack authenticates via a
-server-side bot token. NEVER add a "credentials", "connection_id", or "auth" field to any node's
-config — that field does not exist in this system and must not be invented or asked about.
+user's connected Google account (managed in the Integrations tab). NEVER add a "credentials",
+"connection_id", or "auth" field to any node's config — that field does not exist in this
+system and must not be invented or asked about.
 """
 
 # Output fields each connector actually produces, available downstream as
@@ -63,7 +61,6 @@ _OUTPUT_SCHEMA = """\
 - DriveUpload output: file_id, url
 - SheetsAppend output: appended, row, updated_range
 - SheetsReadRows output: rows (a list of objects — one per row, keyed by that sheet's own column headers, which are not known in advance)
-- SlackNotify output: ok, channel, ts
 - HTTPRequest output: status_code, body
 - PDFExtractText output: text
 - LLMExtractFields output: fields (an object) — each extracted field is also available directly

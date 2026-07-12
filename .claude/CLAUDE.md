@@ -5,8 +5,8 @@ and the system plans, validates, compiles, and executes it as an executable DAG,
 requiring manual drag-and-drop node wiring (n8n/Zapier/Make style).
 
 Example: "Whenever I receive an invoice PDF in Gmail, extract the invoice number, total amount,
-and due date, save the PDF to Google Drive, append the data to Google Sheets, and send me a
-Slack message" becomes a working pipeline the user can click Run on.
+and due date, save the PDF to Google Drive, append the data to Google Sheets, and email me a
+summary" becomes a working pipeline the user can click Run on.
 
 ## Code style
 
@@ -54,7 +54,7 @@ Workflow Compiler (app/compiler)
 Execution Engine (app/engine)
         │
         ▼
-Service Connectors (app/connectors) — Gmail, Sheets, Drive, Slack, HTTP, PDF, LLM extraction
+Service Connectors (app/connectors) — Gmail, Sheets, Drive, HTTP, PDF, LLM extraction
         │
         ▼
 Firebase Firestore (app/storage) — workflows, versions, execution logs
@@ -84,7 +84,6 @@ implementation details:
 - `GmailTrigger` / `GmailSend`
 - `DriveUpload`
 - `SheetsAppend` / `SheetsReadRows`
-- `SlackNotify` (or Discord)
 - `HTTPRequest` (generic external API call)
 - `PDFExtractText`
 - `LLMExtractFields` (generic schema-driven AI extraction)

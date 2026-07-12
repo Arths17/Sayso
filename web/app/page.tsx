@@ -117,7 +117,7 @@ const scriptItems = [
 export default function Home() {
   return (
     <>
-      <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+      <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: bodyHtml }} />
       <ScriptLoader items={scriptItems as unknown as { src: string | null; inline: string | null }[]} />
     </>
   );

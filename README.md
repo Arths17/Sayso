@@ -16,7 +16,7 @@ The core idea: AI plans the workflow, deterministic code validates and runs it. 
 
 **Example prompt:**
 
-> "Whenever I receive an invoice PDF in Gmail, extract the invoice number, total amount, and due date, save the PDF to Google Drive, append the data to Google Sheets, and send me a Slack message."
+> "Whenever I receive an invoice PDF in Gmail, extract the invoice number, total amount, and due date, save the PDF to Google Drive, append the data to Google Sheets, and email me a summary."
 
 **Generated workflow:**
 
@@ -33,7 +33,7 @@ Upload PDF to Google Drive
    │
 Append Row to Google Sheets
    │
-Send Slack Notification
+Send Summary Email
 ```
 
 Click Run, and it works.
@@ -244,7 +244,6 @@ If your frontend already talks to Firestore, subscribing to its realtime listene
 * Google Drive Upload
 * Google Sheets Append
 * Google Sheets Read Rows
-* Slack Notify
 * HTTP Request
 * PDF Extract Text
 * LLM Extract Fields

@@ -21,9 +21,9 @@ never be fixed at the node-config level. Template references only ever use {{ }}
 {{ trigger.from }}) — never ${...} or other interpolation syntax.
 
 If the error is something node config genuinely cannot fix (e.g. a missing external credential
-like a Slack bot token that only an administrator can set via environment configuration, or a
-transient network failure), say so plainly in diff_explanation and propose the smallest patch
-that is actually possible — do not invent a config field just to have something to propose."""
+that only an administrator can set via environment configuration, or a transient network
+failure), say so plainly in diff_explanation and propose the smallest patch that is actually
+possible — do not invent a config field just to have something to propose."""
 
 
 def heal(spec: WorkflowSpec, node: Node, error: str) -> HealPatch:

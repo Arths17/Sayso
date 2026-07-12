@@ -14,18 +14,15 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ""
 
 
 @pytest.fixture
-def fake_slack(monkeypatch):
-    """Real (non-dry-run) SlackNotify calls hit slack.com; this fixture fakes
-    a successful chat.postMessage response instead, so tests can exercise a
-    real (non-mocked) connector run without a network call."""
+def fake_gmail_send(monkeypatch):
+    """Real (non-dry-run) GmailSend calls hit gmail.googleapis.com; this
+    fixture fakes a successful messages.send response instead, so tests can
+    exercise a real (non-mocked) connector run without a network call."""
     import httpx as httpx_module
 
     class FakeResponse:
         def raise_for_status(self):
             pass
-
-        def json(self):
-            return {"ok": True, "ts": "123.456"}
 
     class FakeClient:
         def __init__(self, *a, **k):
@@ -40,5 +37,5 @@ def fake_slack(monkeypatch):
         def post(self, *a, **k):
             return FakeResponse()
 
-    monkeypatch.setenv("SLACK_TOKEN", "xoxb-fake-test-token")
+    monkeypatch.setenv("GMAIL_TOKEN", "fake-gmail-test-token")
     monkeypatch.setattr(httpx_module, "Client", FakeClient)

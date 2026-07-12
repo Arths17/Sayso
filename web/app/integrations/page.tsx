@@ -13,7 +13,6 @@ const CONNECTOR_LABELS: Record<string, string> = {
   drive_upload: "Google Drive Upload",
   sheets_append: "Google Sheets Append",
   sheets_read_rows: "Google Sheets Read Rows",
-  slack_notify: "Slack Notify",
   http_request: "HTTP Request",
   pdf_extract_text: "PDF Extract Text",
   llm_extract_fields: "LLM Extract Fields",

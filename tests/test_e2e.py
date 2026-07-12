@@ -15,7 +15,7 @@ def test_health():
     r = client.get("/health")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
-    assert "SlackNotify" in r.json()["connectors"]
+    assert "GmailSend" in r.json()["connectors"]
 
 
 def test_generate_invoice_workflow():
@@ -28,30 +28,30 @@ def test_generate_invoice_workflow():
 
 
 def test_clarify_flow():
-    r = client.post("/workflows/generate", json={"prompt": "Send a slack message when something happens"})
+    r = client.post("/workflows/generate", json={"prompt": "Send an email when something happens"})
     body = r.json()
     assert body["status"] == "needs_clarification"
     wid = body["workflow_id"]
     q = body["clarification"]["questions"][0]
-    r2 = client.post(f"/workflows/{wid}/clarify", json={"answers": {q: "post to #alerts"}})
+    r2 = client.post(f"/workflows/{wid}/clarify", json={"answers": {q: "send to alerts@company.com"}})
     assert r2.json()["status"] == "validated"
 
 
 def test_clarify_accumulates_answers_across_rounds():
-    r = client.post("/workflows/generate", json={"prompt": "Send a slack message when something happens"})
+    r = client.post("/workflows/generate", json={"prompt": "Send an email when something happens"})
     wid = r.json()["workflow_id"]
     client.post(f"/workflows/{wid}/clarify", json={"answers": {"unrelated question": "unrelated answer"}})
-    r2 = client.post(f"/workflows/{wid}/clarify", json={"answers": {"which channel": "post to #ops"}})
+    r2 = client.post(f"/workflows/{wid}/clarify", json={"answers": {"which recipient": "send to ops@company.com"}})
     assert r2.json()["status"] == "validated"
     record = repository.get_workflow(wid)
     assert record.clarification_answers == {
         "unrelated question": "unrelated answer",
-        "which channel": "post to #ops",
+        "which recipient": "send to ops@company.com",
     }
 
 
 def test_dry_run_and_status():
-    r = client.post("/workflows/generate", json={"prompt": "Process invoices, notify #finance"})
+    r = client.post("/workflows/generate", json={"prompt": "Process invoices, email finance@company.com"})
     wid = r.json()["workflow_id"]
     run = client.post(f"/workflows/{wid}/dry-run").json()
     assert run["state"] == "completed"
@@ -61,7 +61,7 @@ def test_dry_run_and_status():
 
 
 def test_explain_node():
-    r = client.post("/workflows/generate", json={"prompt": "Process invoices, notify #finance"})
+    r = client.post("/workflows/generate", json={"prompt": "Process invoices, email finance@company.com"})
     wid = r.json()["workflow_id"]
     r2 = client.get(f"/workflows/{wid}/nodes/check_amount/explain")
     assert r2.status_code == 200
@@ -69,7 +69,7 @@ def test_explain_node():
 
 
 def test_edit_creates_version_with_diff():
-    r = client.post("/workflows/generate", json={"prompt": "Process invoices, notify #finance"})
+    r = client.post("/workflows/generate", json={"prompt": "Process invoices, email finance@company.com"})
     wid = r.json()["workflow_id"]
     before = client.get(f"/workflows/{wid}/versions").json()
     r2 = client.post(f"/workflows/{wid}/edit", json={"instruction": "only run if amount > 500"})
@@ -79,7 +79,7 @@ def test_edit_creates_version_with_diff():
 
 
 def test_revert():
-    r = client.post("/workflows/generate", json={"prompt": "Process invoices, notify #finance"})
+    r = client.post("/workflows/generate", json={"prompt": "Process invoices, email finance@company.com"})
     wid = r.json()["workflow_id"]
     v0 = client.get(f"/workflows/{wid}/versions").json()[0]["id"]
     client.post(f"/workflows/{wid}/edit", json={"instruction": "add a step"})
@@ -88,14 +88,15 @@ def test_revert():
     assert rev["new_version"] != v0
 
 
-def test_self_heal_end_to_end(fake_slack):
+def test_self_heal_end_to_end(fake_gmail_send):
     spec = WorkflowSpec(name="broken", nodes=[
-        Node(id="notify", type=NodeType.connector, connector="SlackNotify", config={}),
+        Node(id="notify", type=NodeType.connector, connector="GmailSend", config={}),
     ])
-    rec = repository.create_workflow("broken", spec)
+    rec = repository.create_workflow("broken", spec, owner_uid="dev-user")
 
     async def go():
         ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=False)
+        ex.context["_uid"] = "dev-user"
         ex = await executor.run_execution(rec.spec, ex)
         assert ex.state == "awaiting_heal_approval"
         assert ex.pending_heal is not None
@@ -109,7 +110,7 @@ def test_heal_patch_rejected_by_validator():
     from app.schemas import HealPatch
 
     spec = WorkflowSpec(name="broken2", nodes=[
-        Node(id="notify", type=NodeType.connector, connector="SlackNotify", config={}),
+        Node(id="notify", type=NodeType.connector, connector="GmailSend", config={}),
     ])
     rec = repository.create_workflow("broken2", spec)
 
@@ -264,8 +265,9 @@ def test_google_oauth_callback_stores_tokens(monkeypatch):
         lambda code: {"access_token": "tok", "refresh_token": "refresh", "expires_in": 3600},
     )
     state = google_oauth.sign_state("dev-user")
-    r = client.get("/oauth/google/callback", params={"code": "abc", "state": state})
-    assert r.status_code == 200
+    r = client.get("/oauth/google/callback", params={"code": "abc", "state": state}, follow_redirects=False)
+    assert r.status_code == 307
+    assert "google_connected=1" in r.headers["location"]
     assert google_oauth.is_connected("dev-user")
 
 
@@ -450,21 +452,6 @@ def test_pdf_extract_text_fetches_gmail_attachment(monkeypatch):
     assert result.output["text"] == ""
 
 
-def test_slack_notify_real_run_without_token_raises():
-    from app.connectors.base import ConnectorError
-    from app.connectors.library import SlackNotify
-
-    with pytest.raises(ConnectorError):
-        SlackNotify().run({"channel": "#finance", "text": "hi"}, {})
-
-
-def test_slack_notify_real_run_posts_message(fake_slack):
-    from app.connectors.library import SlackNotify
-
-    result = SlackNotify().run({"channel": "#finance", "text": "hi"}, {})
-    assert result.output == {"ok": True, "channel": "#finance", "ts": "123.456"}
-
-
 def test_naive_parse_handles_regex_metacharacters_in_field_name():
     from app.connectors.library import _naive_parse
 
@@ -598,7 +585,7 @@ def test_force_mock_connectors_overrides_real_run():
     from app.config import settings
 
     spec = WorkflowSpec(name="forced-mock", nodes=[
-        Node(id="notify", type=NodeType.connector, connector="SlackNotify", config={}),
+        Node(id="notify", type=NodeType.connector, connector="GmailSend", config={}),
     ])
     rec = repository.create_workflow("forced-mock", spec)
     settings.force_mock_connectors = True
@@ -608,8 +595,8 @@ def test_force_mock_connectors_overrides_real_run():
             return await executor.run_execution(rec.spec, ex)
 
         ex = asyncio.run(go())
-        # without the override this config (missing "channel") would fail and
-        # trigger self-healing; the override makes even a real run use mock()
+        # without the override this config (missing "to"/"body") would fail
+        # and trigger self-healing; the override makes even a real run use mock()
         assert ex.state == "completed"
     finally:
         settings.force_mock_connectors = False
@@ -621,8 +608,8 @@ def test_for_each_loop_body_supports_conditional():
              loop_body=["check", "notify_big"]),
         Node(id="check", type=NodeType.conditional, condition="{{ item.amount }} > 100",
              true_branch=["notify_big"], false_branch=[]),
-        Node(id="notify_big", type=NodeType.connector, connector="SlackNotify",
-             config={"channel": "#alerts", "text": "big row"}),
+        Node(id="notify_big", type=NodeType.connector, connector="GmailSend",
+             config={"to": "alerts@company.com", "body": "big row"}),
     ])
     rec = repository.create_workflow("loop-cond", spec)
 
@@ -642,16 +629,17 @@ def test_for_each_loop_body_supports_conditional():
     assert iterations[3]["notify_big"] != {"skipped": "untaken branch"}
 
 
-def test_human_approval_pauses_and_resumes(fake_slack):
+def test_human_approval_pauses_and_resumes(fake_gmail_send):
     spec = WorkflowSpec(name="approval-gate", nodes=[
         Node(id="gate", type=NodeType.human_approval, config={"auto_approve": False}),
-        Node(id="notify", type=NodeType.connector, connector="SlackNotify",
-             config={"channel": "#finance"}, depends_on=["gate"]),
+        Node(id="notify", type=NodeType.connector, connector="GmailSend",
+             config={"to": "finance@company.com", "body": "approved"}, depends_on=["gate"]),
     ])
     rec = repository.create_workflow("approval-gate", spec, owner_uid="dev-user")
 
     async def go():
         ex = repository.new_execution(rec.id, rec.current_version_id, dry_run=False)
+        ex.context["_uid"] = "dev-user"
         return await executor.run_execution(rec.spec, ex)
 
     ex = asyncio.run(go())

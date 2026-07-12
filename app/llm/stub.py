@@ -21,14 +21,14 @@ def _plan(ctx: dict) -> dict:
     return _generic_plan(prompt_full, answers)
 
 
-def _channel_from(text: str, answers: dict) -> str | None:
-    m = re.search(r"#([\w-]+)", text)
+def _email_from(text: str, answers: dict) -> str | None:
+    m = re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", text)
     if m:
-        return f"#{m.group(1)}"
+        return m.group(0)
     for v in answers.values():
-        m = re.search(r"#([\w-]+)", str(v))
+        m = re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", str(v))
         if m:
-            return f"#{m.group(1)}"
+            return m.group(0)
     return None
 
 
@@ -38,7 +38,7 @@ def _threshold_from(text: str) -> int:
 
 
 def _invoice_plan(text: str, answers: dict) -> dict:
-    channel = _channel_from(text, answers) or "#finance"
+    email = _email_from(text, answers) or "finance@company.com"
     threshold = _threshold_from(text)
     return {
         "name": "Invoice processing",
@@ -112,10 +112,11 @@ def _invoice_plan(text: str, answers: dict) -> dict:
             {
                 "id": "notify",
                 "type": "connector",
-                "connector": "SlackNotify",
+                "connector": "GmailSend",
                 "config": {
-                    "channel": channel,
-                    "text": "Invoice from {{ extract_fields.vendor }} for {{ extract_fields.amount }} processed.",
+                    "to": email,
+                    "subject": "Invoice processed",
+                    "body": "Invoice from {{ extract_fields.vendor }} for {{ extract_fields.amount }} processed.",
                 },
                 "depends_on": ["record_invoice"],
                 "reasoning": "Tell the finance team an invoice was processed.",
@@ -125,7 +126,7 @@ def _invoice_plan(text: str, answers: dict) -> dict:
 
 
 def _generic_plan(text: str, answers: dict) -> dict:
-    channel = _channel_from(text, answers) or ""
+    email = _email_from(text, answers) or ""
     nodes = []
     if "sheet" in text or "row" in text:
         nodes.append(
@@ -153,8 +154,8 @@ def _generic_plan(text: str, answers: dict) -> dict:
             {
                 "id": "notify_row",
                 "type": "connector",
-                "connector": "SlackNotify",
-                "config": {"channel": channel, "text": "Row: {{ item }}"},
+                "connector": "GmailSend",
+                "config": {"to": email, "subject": "Row update", "body": "Row: {{ item }}"},
                 "depends_on": ["for_each_row"],
                 "reasoning": "Send a notification per row.",
             }
@@ -164,10 +165,10 @@ def _generic_plan(text: str, answers: dict) -> dict:
             {
                 "id": "notify",
                 "type": "connector",
-                "connector": "SlackNotify",
-                "config": {"channel": channel, "text": "Workflow ran."},
+                "connector": "GmailSend",
+                "config": {"to": email, "subject": "Workflow ran", "body": "Workflow ran."},
                 "depends_on": [],
-                "reasoning": "Notify the team.",
+                "reasoning": "Notify the user.",
             }
         )
     return {
@@ -184,12 +185,12 @@ def _critique(ctx: dict) -> dict:
     spec = ctx.get("spec") or {}
     questions: list[str] = []
     for node in spec.get("nodes", []):
-        if node.get("connector") == "SlackNotify":
-            ch = (node.get("config") or {}).get("channel")
-            if not ch or "{{" in str(ch):
+        if node.get("connector") == "GmailSend":
+            to = (node.get("config") or {}).get("to")
+            if not to or "{{" in str(to):
                 questions.append(
-                    f"Node '{node['id']}' sends a Slack message but no concrete "
-                    "channel was specified. Which channel should it post to?"
+                    f"Node '{node['id']}' sends an email but no concrete "
+                    "recipient was specified. Who should it be sent to?"
                 )
     if questions:
         return {
@@ -206,12 +207,21 @@ def _heal(ctx: dict) -> dict:
     node_id = node.get("id", "unknown")
     config = dict(node.get("config") or {})
 
-    if "channel" in error.lower():
-        patch = {"config": {**config, "channel": "#general"}}
-        expl = f"Node '{node_id}' failed because no Slack channel was set; defaulting to #general."
-    elif "spreadsheet" in error.lower() or "not found" in error.lower():
+    if "spreadsheet" in error.lower() or "not found" in error.lower():
         patch = {"config": {**config, "spreadsheet_id": "invoices"}}
         expl = f"Corrected the spreadsheet id on '{node_id}' to a known sheet."
+    elif "url not specified" in error.lower():
+        patch = {"config": {**config, "url": "https://example.com/webhook"}}
+        expl = f"Added a default webhook URL to '{node_id}'."
+    elif "missing required field" in error.lower():
+        patch = {
+            "config": {
+                **config,
+                "to": config.get("to") or "user@example.com",
+                "body": config.get("body") or "Workflow notification.",
+            }
+        }
+        expl = f"Filled in the missing required recipient/body fields on '{node_id}'."
     elif "field" in error.lower() or "key" in error.lower() or "regex" in error.lower():
         schema = dict(config.get("schema") or {})
         schema.setdefault("amount", "number")

@@ -67,7 +67,7 @@ export default function DottedFrame({ color = "var(--color--grey-700)" }: { colo
     return () => ro.disconnect();
   }, [color]);
 
-  return (
+  return ( //Dotted frame component that makes dotted border around the children.
     <div ref={wrapRef} className="dotted-frame">
       <svg ref={svgRef} className="dotted-frame-svg" />
       <style>{`

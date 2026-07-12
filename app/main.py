@@ -10,7 +10,6 @@ from app import google_oauth, service
 from app.agents import explainer
 from app.auth import get_current_user
 from app.config import settings
-from app.config import settings
 from app.connectors import registry
 from app.engine import executor
 from app.schemas import (
@@ -29,7 +28,7 @@ from app.storage import repository, versions
 app = FastAPI(title="Sayso", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -280,18 +280,6 @@ export default function WorkflowDetailPage() {
           color: var(--color--white) !important;
         }
 
-        .wd_header {
-          margin-bottom: 0.5em;
-        }
-
-        .wd_title {
-          margin: 0 0 0.5em;
-        }
-
-        .wd_desc {
-          margin: 0;
-        }
-
         .wd_exec-picker {
           display: flex;
           align-items: center;

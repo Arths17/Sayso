@@ -75,9 +75,13 @@ class Settings:
 
     @property
     def auth_enabled(self) -> bool:
+        # Fail closed by default: auth is on unless explicitly disabled via
+        # SAYSO_AUTH_DISABLED. Previously this was inferred from whether
+        # Firestore credentials were set, which meant a deployment missing
+        # those env vars would silently run with auth off.
         if self._auth_disabled_override is not None:
             return not _bool("SAYSO_AUTH_DISABLED", False)
-        return self.use_firestore
+        return True
 
 
 @lru_cache

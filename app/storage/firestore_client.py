@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import threading
 from abc import ABC, abstractmethod
 from typing import Any
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class Store(ABC):
@@ -193,7 +196,7 @@ def get_store() -> Store:
             try:
                 _store = FirestoreStore()
             except Exception as e:
-                print(f"[sayso] Firestore init failed ({e}); using in-memory store")
+                logger.warning("Firestore init failed (%s); using in-memory store", e)
                 _store = InMemoryStore()
         else:
             _store = InMemoryStore()

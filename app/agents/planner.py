@@ -21,7 +21,7 @@ Think step by step about what needs to happen, based on the user's input, then o
 ## Examples
 
 ### Example 1: Invoice Processing
-Input: "When an invoice email arrives, extract vendor, amount and due date. If the amount is greater than 5000 require human approval. Record it to the finance sheet and notify #finance."
+Input: "When an invoice email arrives, extract vendor, amount and due date. If the amount is greater than 5000 require human approval. Record it to the finance sheet and email finance@company.com."
 Output: {
   "name": "Invoice processing",
   "description": "Extract invoice data from incoming email attachments and route by amount.",
@@ -34,12 +34,12 @@ Output: {
     {"id": "check_amount", "type": "conditional", "condition": "{{ extract_fields.amount }} > {{ approval_threshold }}", "true_branch": ["approve_large"], "false_branch": [], "depends_on": ["extract_fields"], "reasoning": "Large invoices need a human sign-off before being recorded."},
     {"id": "approve_large", "type": "human_approval", "config": {"prompt": "Approve large invoice payment?"}, "depends_on": ["check_amount"], "reasoning": "Human approval gate for high-value invoices."},
     {"id": "record_invoice", "type": "connector", "connector": "SheetsAppend", "config": {"spreadsheet_id": "invoices", "row": {"vendor": "{{ extract_fields.vendor }}", "amount": "{{ extract_fields.amount }}", "due_date": "{{ extract_fields.due_date }}"}}, "depends_on": ["check_amount"], "reasoning": "Persist every invoice to the finance sheet."},
-    {"id": "notify", "type": "connector", "connector": "SlackNotify", "config": {"channel": "#finance", "text": "Invoice from {{ extract_fields.vendor }} for {{ extract_fields.amount }} processed."}, "depends_on": ["record_invoice"], "reasoning": "Tell the finance team an invoice was processed."}
+    {"id": "notify", "type": "connector", "connector": "GmailSend", "config": {"to": "finance@company.com", "subject": "Invoice processed", "body": "Invoice from {{ extract_fields.vendor }} for {{ extract_fields.amount }} processed."}, "depends_on": ["record_invoice"], "reasoning": "Tell the finance team an invoice was processed."}
   ]
 }
 
 ### Example 2: For-Each Loop
-Input: "For each row in the customers sheet, send a Slack message to #team with the row."
+Input: "For each row in the customers sheet, email team@company.com with the row."
 Output: {
   "name": "Generated workflow",
   "description": "Heuristically generated from the prompt.",
@@ -49,12 +49,12 @@ Output: {
   "nodes": [
     {"id": "read_rows", "type": "connector", "connector": "SheetsReadRows", "config": {"spreadsheet_id": "source"}, "depends_on": [], "reasoning": "Load the rows to iterate over."},
     {"id": "for_each_row", "type": "for_each", "iterate_over": "{{ read_rows.rows }}", "loop_body": ["notify_row"], "depends_on": ["read_rows"], "reasoning": "Process each row independently."},
-    {"id": "notify_row", "type": "connector", "connector": "SlackNotify", "config": {"channel": "#team", "text": "Row: {{ item }}"}, "depends_on": ["for_each_row"], "reasoning": "Send a notification per row."}
+    {"id": "notify_row", "type": "connector", "connector": "GmailSend", "config": {"to": "team@company.com", "subject": "Row update", "body": "Row: {{ item }}"}, "depends_on": ["for_each_row"], "reasoning": "Send a notification per row."}
   ]
 }
 
 ### Example 3: Simple Notification
-Input: "Send a Slack message whenever a new signup happens"
+Input: "Email me whenever a new signup happens"
 Output: {
   "name": "Generated workflow",
   "description": "Heuristically generated from the prompt.",
@@ -62,7 +62,7 @@ Output: {
   "trigger": {"type": "manual", "config": {}, "reasoning": "No explicit trigger found."},
   "variables": {},
   "nodes": [
-    {"id": "notify", "type": "connector", "connector": "SlackNotify", "config": {"channel": "", "text": "Workflow ran."}, "depends_on": [], "reasoning": "Notify the team."}
+    {"id": "notify", "type": "connector", "connector": "GmailSend", "config": {"to": "", "subject": "Workflow ran", "body": "Workflow ran."}, "depends_on": [], "reasoning": "Notify the user."}
   ]
 }
 

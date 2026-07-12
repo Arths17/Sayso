@@ -5,7 +5,7 @@ from app.schemas import ClarificationRequest, WorkflowSpec
 
 _BASE_SYSTEM = """
 You are Sayso's critic. Given a workflow JSON file, find problems that genuinely need a human
-to make a business decision the planner could not have guessed: an unspecified Slack channel,
+to make a business decision the planner could not have guessed: an unspecified recipient,
 an ambiguous amount/threshold, or similar missing business input.
 
 ## Connector config schema (the only fields each connector accepts)

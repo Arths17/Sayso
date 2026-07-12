@@ -10,9 +10,9 @@ from app.storage import repository
 EXAMPLES = [
     "When an invoice email arrives, extract the vendor, amount and due date. "
     "If the amount is greater than 5000, require human approval. Record the "
-    "invoice to the finance sheet and notify #finance.",
-    "For each row in the customers sheet, send a Slack message to #team with the row.",
-    "Send a Slack message whenever a new signup happens.",
+    "invoice to the finance sheet and email finance@company.com.",
+    "For each row in the customers sheet, email team@company.com with the row.",
+    "Email me whenever a new signup happens.",
 ]
 
 
@@ -34,11 +34,11 @@ async def main():
         print()
 
     broken = WorkflowSpec(
-        name="Broken Slack notify (self-heal demo)",
+        name="Broken Gmail notify (self-heal demo)",
         trigger=Trigger(type="manual"),
-        nodes=[Node(id="notify", type=NodeType.connector, connector="SlackNotify", config={})],
+        nodes=[Node(id="notify", type=NodeType.connector, connector="GmailSend", config={})],
     )
-    rec = repository.create_workflow("broken slack demo", broken, owner_uid="dev-user")
+    rec = repository.create_workflow("broken gmail demo", broken, owner_uid="dev-user")
     print(f"[self-heal demo] {rec.id}")
     print("   real-run this workflow to trigger the healer:")
     print(f"   POST /workflows/{rec.id}/run")

@@ -42,16 +42,16 @@ and the `notify` step — all first-class nodes.
 ## 2. REFINE — a clarification round (different workflow)
 
 ```bash
-# A Slack prompt with no channel makes the critic ask a question:
+# An email prompt with no recipient makes the critic ask a question:
 curl -s -X POST localhost:8000/workflows/generate \
   -H 'content-type: application/json' \
-  -d '{"prompt":"Send a Slack message whenever a new signup happens"}' | jq
+  -d '{"prompt":"Email me whenever a new signup happens"}' | jq
 # -> status: "needs_clarification", clarification.questions: [...]
 
 WID2=wf_yyy   # id from above
 curl -s -X POST localhost:8000/workflows/$WID2/clarify \
   -H 'content-type: application/json' \
-  -d '{"answers":{"which channel":"post to #signups"}}' | jq
+  -d '{"answers":{"which recipient":"send to signups@company.com"}}' | jq
 # -> status: "validated"
 ```
 
@@ -83,7 +83,7 @@ curl -s "localhost:8000/workflows/$WID/status?execution_id=$EX" | jq '.logs[] | 
 
 ## 6. BREAK + SELF-HEAL — real run of a broken node
 
-The seed script creates a Slack node with no channel. Real-run it:
+The seed script creates a Gmail send node with no recipient. Real-run it:
 
 ```bash
 python seed.py            # prints a "[self-heal demo] wf_zzz" id
@@ -95,7 +95,7 @@ curl -s -X POST localhost:8000/workflows/$WID3/run | jq
 # inspect the proposed patch on the execution:
 EX3=$(curl -s "localhost:8000/workflows/$WID3/status" | jq -r .id)
 curl -s "localhost:8000/workflows/$WID3/status?execution_id=$EX3" | jq '.pending_heal'
-# -> { patch: { config: { channel: "#general" } }, diff_explanation: "..." }
+# -> { patch: { config: { to: "..." } }, diff_explanation: "..." }
 
 # approve the patch -> re-runs just the affected node and continues:
 curl -s -X POST localhost:8000/workflows/$WID3/executions/$EX3/heal \

@@ -161,6 +161,7 @@ async def heal_approval(workflow_id: str, execution_id: str, req: HealApprovalRe
         execution.pending_heal = None
         repository.save_execution(execution)
         return {"applied": False, "state": execution.state, "execution_id": execution.id}
+    execution.context["_uid"] = user.uid
     execution = await executor.apply_heal_and_resume(record.spec, execution)
     versions.create_version(workflow_id, record.spec, message="self-heal patch applied")
     return {"applied": True, "state": execution.state, "execution_id": execution.id}
@@ -174,6 +175,7 @@ async def approve(workflow_id: str, execution_id: str, req: ApprovalRequest, use
         raise HTTPException(404, "not found")
     if not execution.pending_approval_node_id:
         raise HTTPException(400, "no pending approval")
+    execution.context["_uid"] = user.uid
     execution = await executor.apply_approval_and_resume(record.spec, execution, req.approve)
     return {"approved": req.approve, "state": execution.state, "execution_id": execution.id}
 

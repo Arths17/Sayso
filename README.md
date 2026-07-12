@@ -243,7 +243,6 @@ The backend includes a small collection of connectors that cover common automati
 * Google Drive Upload
 * Google Sheets Append
 * Google Sheets Read Rows
-* Slack Notify
 * HTTP Request
 * PDF Extract Text
 * LLM Extract Fields

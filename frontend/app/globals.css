@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #ffffff;
+  --ink: #0b0c0e;
+  --ink-muted: #55575f;
+  --border: #e7e7e5;
+  --accent: #4f46e5;
+  --accent-ink: #ffffff;
+  --accent-soft: #eceafd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0c0e;
+    --ink: #f3f3f2;
+    --ink-muted: #9a9ca6;
+    --border: #26272c;
+    --accent: #7c72ff;
+    --accent-ink: #0b0c0e;
+    --accent-soft: #1d1b3a;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+}
+
+code, pre, .font-mono-ui {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal[data-visible="true"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.split-lines {
+  display: inline-block;
+}
+.split-word {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.6em);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+[data-visible="true"] .split-word {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.contrast-block {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.dag-pulse {
+  offset-distance: 0%;
+  animation: dag-flow 2.4s linear infinite;
+}
+.dag-pulse-1 { animation-delay: 0s; }
+.dag-pulse-2 { animation-delay: 1.2s; }
+.dag-pulse-3 { animation-delay: 1.2s; }
+
+@keyframes dag-flow {
+  0% { offset-distance: 0%; opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dag-pulse {
+    animation: none;
+    opacity: 0.9;
+  }
+}

@@ -28,6 +28,11 @@ def get_workflow(workflow_id: str) -> WorkflowRecord | None:
     return WorkflowRecord.model_validate(data) if data else None
 
 
+def list_workflows(owner_uid: str) -> list[WorkflowRecord]:
+    records = (WorkflowRecord.model_validate(d) for d in get_store().list_workflows())
+    return [r for r in records if r.owner_uid == owner_uid]
+
+
 def update_spec(workflow_id: str, spec: WorkflowSpec, message: str) -> WorkflowRecord:
     versions.create_version(workflow_id, spec, message=message)
     return get_workflow(workflow_id)

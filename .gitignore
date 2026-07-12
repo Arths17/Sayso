@@ -6,3 +6,5 @@ __pycache__/
 firebase-service-account*.json
 .pytest_cache/
 .claude/
+.frontend/
+node_modules/

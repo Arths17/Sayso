@@ -65,7 +65,6 @@ export default function RootLayout({
         />
         <link rel="preconnect" href="https://cdn.prod.website-files.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
-        <link rel="preconnect" href="https://cdn.weglot.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://d3e54v103j8qbb.cloudfront.net" />
 
         <style>{`
@@ -102,38 +101,10 @@ html.lenis body {
   visibility: hidden;
 }
 
-#ez-cookie-manager-button {
-  bottom: 50px;
-}
-
-/** Weglot overrides */
+#ez-cookie-manager-button,
+.weglot-container,
 .wg-drop.country-selector {
-    border: 0 !important;
-    background-color: transparent !important;
-}
-.wg-drop.country-selector .wgcurrent {
-  border: 0 !important;
-  }
-.wg-default.weglot-container--left, .wg-default.weglot-container--left .country-selector {
-  left: 0 !important;
-}
-
-.weglot-container {
-  z-index: 2147483640 !important;
-}
-
-.wg-drop.country-selector .wgcurrent {
- background-color: #011829;
- color: #fff;
- border: 0;
- border-top-right-radius: 20px;
-}
-
-.wg-drop.country-selector .wgcurrent a {
- color: #fff;
-}
-.wg-drop.country-selector .wgcurrent:after {
-  background-image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI4NC45IDI4NC45Ij48cGF0aCBkPSJtMjgyIDc2LjUtMTQuMi0xNC4zYTkgOSAwIDAgMC0xMy4xIDBMMTQyLjUgMTc0LjQgMzAuMyA2Mi4yYTkgOSAwIDAgMC0xMy4yIDBMMyA3Ni41YTkgOSAwIDAgMCAwIDEzLjFsMTMzIDEzM2E5IDkgMCAwIDAgMTMuMSAwbDEzMy0xMzNhOSA5IDAgMCAwIDAtMTN6IiBmaWxsPSIjZmZmIi8+PC9zdmc+) !important;
+  display: none !important;
 }
 `}</style>
 

@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Script from "next/script";
 
 export const metadata: Metadata = {
-  title: "Sui | The Full Stack for a New Global Economy",
+  title: "Sayso | Just Say So",
   description:
-    "Sui is a high-performance blockchain delivering the full stack for a new global economy. One modular, decentralized system. From first commit to global scale.",
+    "Sayso is an agentic workflow model that handles your invoices in Slack and Gmail, and uses your initial commands to execute actions automatically based on the invoices",
   openGraph: {
-    title: "Sui | The Full Stack for a New Global Economy",
+    title: "Sayso | Just Say So",
     description:
-      "Sui is a high-performance blockchain delivering the full stack for a new global economy. One modular, decentralized system. From first commit to global scale.",
+      "Sayso is an agentic workflow model that handles your invoices in Slack and Gmail, and uses your initial commands to execute actions automatically based on the invoices",
     images: [
       "https://cdn.prod.website-files.com/68e8e0120513ba12c5cd12e0/69395a465cc0a72a36001c70_og-home.png",
     ],
@@ -16,9 +16,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Sui | The Full Stack for a New Global Economy",
+    title: "Sayso | Just Say So",
     description:
-      "Sui is a high-performance blockchain delivering the full stack for a new global economy. One modular, decentralized system. From first commit to global scale.",
+      "Sayso is an agentic workflow model that handles your invoices in Slack and Gmail, and uses your intial commands to execute actions automatically based on the invoices",
     images: [
       "https://cdn.prod.website-files.com/68e8e0120513ba12c5cd12e0/69395a465cc0a72a36001c70_og-home.png",
     ],

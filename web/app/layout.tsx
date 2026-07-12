@@ -6,11 +6,11 @@ import "./app.css";
 export const metadata: Metadata = {
   title: "Sayso | Just Say So",
   description:
-    "Sayso is an agentic workflow model that handles your invoices in Slack and Gmail, and uses your initial commands to execute actions automatically based on the invoices",
+    "Sayso is an agentic workflow model that handles your invoices in Gmail, and uses your initial commands to execute actions automatically based on the invoices",
   openGraph: {
     title: "Sayso | Just Say So",
     description:
-      "Sayso is an agentic workflow model that handles your invoices in Slack and Gmail, and uses your initial commands to execute actions automatically based on the invoices",
+      "Sayso is an agentic workflow model that handles your invoices in Gmail, and uses your initial commands to execute actions automatically based on the invoices",
     images: [
       "https://cdn.prod.website-files.com/68e8e0120513ba12c5cd12e0/69395a465cc0a72a36001c70_og-home.png",
     ],
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Sayso | Just Say So",
     description:
-      "Sayso is an agentic workflow model that handles your invoices in Slack and Gmail, and uses your intial commands to execute actions automatically based on the invoices",
+      "Sayso is an agentic workflow model that handles your invoices in Gmail, and uses your initial commands to execute actions automatically based on the invoices",
     images: [
       "https://cdn.prod.website-files.com/68e8e0120513ba12c5cd12e0/69395a465cc0a72a36001c70_og-home.png",
     ],

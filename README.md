@@ -195,7 +195,7 @@ Most workflow endpoints expect a Firebase ID token:
 Authorization: Bearer <Firebase ID token>
 ```
 
-This turns on automatically once Firestore credentials are configured. Locally, it's off by default so you can run the backend without touching Firebase.
+This turns on automatically once Firestore credentials are configured. Locally, it's off by default so you can run the backend without having to touch the Firebase.
 
 ---
 

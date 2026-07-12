@@ -52,6 +52,12 @@ class Settings:
 
     force_mock_connectors: bool = _bool("SAYSO_FORCE_MOCK_CONNECTORS", False)
 
+    cors_origins: list[str] = [
+        o.strip()
+        for o in os.getenv("SAYSO_CORS_ORIGINS", "http://localhost:3000").split(",")
+        if o.strip()
+    ]
+
     @property
     def use_real_llm(self) -> bool:
         return bool(self.openrouter_api_key)

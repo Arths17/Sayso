@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import google_oauth, service
 from app.agents import explainer
 from app.auth import get_current_user
+from app.config import settings
 from app.connectors import registry
 from app.engine import executor
 from app.schemas import (
@@ -23,6 +25,13 @@ from app.schemas import (
 from app.storage import repository, versions
 
 app = FastAPI(title="Sayso", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
@@ -86,6 +95,11 @@ def edit(workflow_id: str, req: EditRequest, user=Depends(get_current_user)):
     _get_owned_workflow(workflow_id, user)
     record, version = service.edit(workflow_id, req.instruction)
     return {"workflow_id": workflow_id, "version": version.id, "diff": version.diff, "spec": record.spec}
+
+
+@router.get("/workflows")
+def list_workflows(user=Depends(get_current_user)):
+    return repository.list_workflows(user.uid)
 
 
 @router.get("/workflows/{workflow_id}")

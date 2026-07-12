@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import PageTransition from "./PageTransition";
 
 export const metadata: Metadata = {
   title: "Sui | The Full Stack for a New Global Economy",
@@ -430,7 +431,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 })(window,document,'script','dataLayer','GTM-5C9KVWT');
 `}</Script>
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <PageTransition />
+      </body>
     </html>
   );
 }

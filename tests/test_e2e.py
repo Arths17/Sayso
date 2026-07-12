@@ -303,8 +303,13 @@ def test_google_oauth_state_rejects_expired(monkeypatch):
 
 
 def test_google_oauth_callback_rejects_invalid_state():
-    r = client.get("/oauth/google/callback", params={"code": "abc", "state": "not-valid-base64!!"})
-    assert r.status_code == 400
+    r = client.get(
+        "/oauth/google/callback",
+        params={"code": "abc", "state": "not-valid-base64!!"},
+        follow_redirects=False,
+    )
+    assert r.status_code in (302, 307)
+    assert "google_error=" in r.headers["location"]
 
 
 def test_ssrf_guard_blocks_private_ip(monkeypatch):

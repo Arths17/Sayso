@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { apiClient } from "@/app/api/index";
@@ -21,12 +21,24 @@ const CONNECTOR_LABELS: Record<string, string> = {
 };
 
 export default function IntegrationsPage() {
+  return (
+    <Suspense fallback={null}>
+      <IntegrationsContent />
+    </Suspense>
+  );
+}
+
+function IntegrationsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [ready, setReady] = useState(false);
   const [connectors, setConnectors] = useState<string[]>([]);
   const [googleConnected, setGoogleConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    searchParams.get("google_error")
+  );
+  const [justConnected, setJustConnected] = useState(searchParams.get("google_connected") === "1");
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -52,6 +64,13 @@ export default function IntegrationsPage() {
     });
     return () => unsub();
   }, [router]);
+
+  useEffect(() => {
+    if (searchParams.get("google_connected") || searchParams.get("google_error")) {
+      router.replace("/integrations");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleConnectGoogle = async () => {
     setError(null);
@@ -79,6 +98,10 @@ export default function IntegrationsPage() {
             </header>
 
             <DashedDivider />
+
+            {justConnected && (
+              <p className="ts-12px int_success">Google account connected successfully.</p>
+            )}
 
             <div className="int_section">
               <h2 className="ts-13px color-white-50 mono all-caps int_section-title">Accounts</h2>
@@ -172,6 +195,11 @@ export default function IntegrationsPage() {
         .int_error {
           margin: 0.875em 0 0;
           color: var(--orange);
+        }
+
+        .int_success {
+          margin: 0 0 2em;
+          color: var(--color--white);
         }
 
         .int_grid {

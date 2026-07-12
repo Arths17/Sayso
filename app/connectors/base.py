@@ -59,7 +59,7 @@ class Connector(ABC):
         if dry_run:
             return self.mock(config, context)
         else:
-            self.run(config, context)
+            return self.run(config, context)
 
 
 class MockConnector:

@@ -2,12 +2,20 @@
 
 import { useState } from "react";
 import { apiClient } from "@/app/api/index";
-import type { ClarificationRequest } from "@/app/api/index";
+import type { ClarificationRequest, GenerateResponse } from "@/app/api/index";
+
+function formatFailure(res: GenerateResponse): string {
+  if (res.status === "invalid" && res.validation) {
+    const reasons = res.validation.errors.map((e) => (e.node_id ? `${e.node_id}: ${e.reason}` : e.reason));
+    return `Couldn't build a valid workflow from that: ${reasons.join("; ")}`;
+  }
+  return "Something went wrong.";
+}
 
 const EXAMPLE_PROMPTS = [
-  "Whenever I receive an invoice PDF in Gmail, extract the invoice number, total amount, and due date, save the PDF to Google Drive, append the data to Google Sheets, and send me a Slack message.",
-  "When a new row is added to my Sheets lead list, look up the company on the web, summarize it, and post the summary to #sales in Slack.",
-  "Every morning, read unread Gmail from my manager, summarize the asks, and send me a Slack DM with a checklist.",
+  "Whenever I receive a new email in Gmail, log the sender, subject, and date to my Inbox Log Google Sheet.",
+  "Whenever I receive a new email in Gmail, automatically send a reply letting them know I received it and will respond soon.",
+  "Whenever I receive a new email in Gmail, send an automatic reply letting them know I got it, and also log the sender, subject, and date to my Inbox Log Google Sheet.",
 ];
 
 export default function NewWorkflowCard({
@@ -44,6 +52,8 @@ export default function NewWorkflowCard({
       if (res.status === "needs_clarification" && res.clarification) {
         setClarification({ workflowId: res.workflow_id, req: res.clarification });
         setAnswers({});
+      } else if (res.status === "invalid") {
+        setError(formatFailure(res));
       } else {
         reset();
         onCreated();
@@ -63,6 +73,8 @@ export default function NewWorkflowCard({
       const res = await apiClient.clarify(clarification.workflowId, { answers });
       if (res.status === "needs_clarification" && res.clarification) {
         setClarification({ workflowId: clarification.workflowId, req: res.clarification });
+      } else if (res.status === "invalid") {
+        setError(formatFailure(res));
       } else {
         reset();
         onCreated();

@@ -38,6 +38,7 @@ class Settings:
     google_oauth_redirect_uri: str = os.getenv(
         "GOOGLE_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/google/callback"
     )
+    frontend_url: str = os.getenv("SAYSO_FRONTEND_URL", "http://localhost:3000")
 
     firebase_credentials_path: str | None = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     firebase_service_account_json: str | None = os.getenv(

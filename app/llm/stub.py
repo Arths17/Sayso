@@ -246,7 +246,10 @@ def _extract_fields(ctx: dict) -> dict:
     schema = ctx.get("schema") or {}
     out = {}
     for k, t in schema.items():
-        out[k] = 4200 if t == "number" else f"stub_{k}"
+        if t == "number":
+            out[k] = 4200
+        else:
+            out[k] = f"stub_{k}"
     return {"fields": out}
 
 

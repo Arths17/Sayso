@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -57,7 +56,10 @@ class Connector(ABC):
         pass
 
     def execute(self, config: dict, context: dict, dry_run: bool) -> ConnectorResult:
-        return self.mock(config, context) if dry_run else self.run(config, context)
+        if dry_run:
+            return self.mock(config, context)
+        else:
+            self.run(config, context)
 
 
 class MockConnector:

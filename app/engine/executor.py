@@ -28,7 +28,13 @@ def _log(execution: Execution, node_id: str, **kw) -> ExecutionLog:
 
 
 def _completed_ids(execution: Execution) -> set[str]:
-    return {l.node_id for l in execution.logs if l.status == NodeStatus.succeeded}
+    succeeded_nodes = set()
+    for l in execution.logs:
+        if l.status == NodeStatus.succeeded:
+            succeeded_nodes.add(l.node_id)
+    return succeeded_nodes
+
+   
 
 
 async def _run_connector(node: Node, config: dict, context: dict, dry_run: bool):

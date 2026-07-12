@@ -54,7 +54,10 @@ class WorkflowSpec(BaseModel):
         return [n.id for n in self.nodes]
 
     def get_node(self, node_id: str) -> Node | None:
-        return next((n for n in self.nodes if n.id == node_id), None)
+        for n in self.nodes:
+            if n.id == node_id:
+                return n
+        return None
 
 
 class ClarificationRequest(BaseModel):

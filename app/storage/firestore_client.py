@@ -109,7 +109,10 @@ class InMemoryStore(Store):
     def get_google_tokens(self, uid):
         with self._lock:
             v = self._google_tokens.get(uid)
-            return self._copy(v) if v else None
+            if v:
+                return self.__copy(v)
+            else:
+                return None
 
 
 class FirestoreStore(Store):
@@ -128,7 +131,10 @@ class FirestoreStore(Store):
 
     def get_workflow(self, wid):
         doc = self._wf(wid).get()
-        return doc.to_dict() if doc.exists else None
+        if doc.exists:
+            return doc.to_dict()
+        else:
+            return None
 
     def list_workflows(self):
         return [d.to_dict() for d in self.db.collection("workflows").stream()]
@@ -138,7 +144,10 @@ class FirestoreStore(Store):
 
     def get_version(self, wid, vid):
         doc = self._wf(wid).collection("versions").document(vid).get()
-        return doc.to_dict() if doc.exists else None
+        if doc.exists:
+            return doc.to_dict()
+        else:
+            return None
 
     def list_versions(self, wid):
         items = [d.to_dict() for d in self._wf(wid).collection("versions").stream()]
@@ -149,7 +158,10 @@ class FirestoreStore(Store):
 
     def get_execution(self, wid, eid):
         doc = self._wf(wid).collection("executions").document(eid).get()
-        return doc.to_dict() if doc.exists else None
+        if doc.exists:
+            return doc.to_dict()
+        else:
+            return None
 
     def list_executions(self, wid):
         return [d.to_dict() for d in self._wf(wid).collection("executions").stream()]

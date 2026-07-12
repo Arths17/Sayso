@@ -12,6 +12,10 @@ Slack message" becomes a working pipeline the user can click Run on.
 
 - Do not add comments to code.
 
+## Git commits
+
+- Never add a `Co-Authored-By: Claude` trailer (or any other Claude/Anthropic attribution) to commit messages.
+
 ## Core AI pipeline
 
 1. **Planner Agent** (`app/agents/planner.py`) — turns the natural language prompt into a

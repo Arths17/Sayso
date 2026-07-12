@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { listWorkflows, latestExecution } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 import type { Execution, WorkflowRecord } from "@/lib/types";
@@ -128,7 +129,7 @@ export default function DashboardClient() {
             </div>
           )}
           {rows.map(({ workflow, execution, status }) => (
-            <div className={styles.row} key={workflow.id}>
+            <Link href={`/dashboard/${workflow.id}`} className={styles.row} key={workflow.id}>
               <span className={`${styles.statusDot} ${styles[status]}`} />
               <div className={styles.rowMain}>
                 <div className={styles.rowName}>{workflow.spec.name || workflow.id}</div>
@@ -148,7 +149,7 @@ export default function DashboardClient() {
                 {execution ? relativeTime(execution.updated_at) : relativeTime(workflow.updated_at)}
               </div>
               <div className={`${styles.statusLabel} ${styles[status]}`}>{STATUS_LABEL[status]}</div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>

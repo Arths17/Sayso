@@ -1,0 +1,224 @@
+.shell {
+  --bg: #000000;
+  --panel: #131518;
+  --ink: #ffffff;
+  --ink-muted: #6c7584;
+  --ink-faint: #4b515b;
+  --border: #222529;
+  --accent: #298dff;
+  --accent-soft: rgba(41, 141, 255, 0.14);
+  --succeeded: #219653;
+  --failed: #ef4444;
+  --attention: #ff6c3d;
+
+  position: relative;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  isolation: isolate;
+}
+
+.shell :global(.navbar) {
+  transform: translateY(0) !important;
+}
+
+.glow {
+  position: absolute;
+  top: -320px;
+  left: 50%;
+  width: 1100px;
+  height: 700px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    rgba(41, 141, 255, 0.3) 0%,
+    rgba(41, 141, 255, 0.1) 45%,
+    rgba(41, 141, 255, 0) 75%
+  );
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mono {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem 6rem;
+}
+
+.backLink {
+  composes: mono;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  text-decoration: none;
+}
+.backLink:hover {
+  color: var(--ink);
+}
+
+.heading {
+  margin: 0.75rem 0 0.25rem;
+  font-size: clamp(1.6rem, 2.6vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.prompt {
+  color: var(--ink-muted);
+  font-size: 0.92rem;
+  max-width: 70ch;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.canvasSection {
+  margin-top: 2rem;
+}
+
+.grid {
+  margin-top: 2.5rem;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 2rem;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sectionLabel {
+  composes: mono;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 0.75rem;
+}
+
+.runRow {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.btn {
+  composes: mono;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.55rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btnPrimary {
+  composes: btn;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+}
+.btnPrimary:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.btnSecondary {
+  composes: btn;
+  border: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+}
+.btnSecondary:hover:not(:disabled) {
+  background: var(--ink);
+  color: #000;
+}
+
+.execPanel {
+  margin-top: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.1rem;
+}
+
+.execHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.execId {
+  composes: mono;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+.execState {
+  composes: mono;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.logList {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.logRow {
+  composes: mono;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.logDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.logNode {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.logStatus {
+  color: var(--ink-muted);
+}
+
+.logError {
+  color: var(--failed);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  color: var(--ink-faint);
+  font-size: 0.8rem;
+}
+
+.errorBanner {
+  margin-top: 1rem;
+  color: var(--failed);
+  font-size: 0.82rem;
+}

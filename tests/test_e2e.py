@@ -257,18 +257,49 @@ def test_google_oauth_start_returns_auth_url(monkeypatch):
 
 
 def test_google_oauth_callback_stores_tokens(monkeypatch):
-    import base64
-
     from app import google_oauth
 
     monkeypatch.setattr(
         google_oauth, "exchange_code",
         lambda code: {"access_token": "tok", "refresh_token": "refresh", "expires_in": 3600},
     )
-    state = base64.urlsafe_b64encode(b"dev-user").decode()
+    state = google_oauth.sign_state("dev-user")
     r = client.get("/oauth/google/callback", params={"code": "abc", "state": state})
     assert r.status_code == 200
     assert google_oauth.is_connected("dev-user")
+
+
+def test_google_oauth_state_roundtrip():
+    from app import google_oauth
+
+    state = google_oauth.sign_state("some-uid")
+    assert google_oauth.verify_state(state) == "some-uid"
+
+
+def test_google_oauth_state_rejects_tampering():
+    from app import google_oauth
+
+    state = google_oauth.sign_state("some-uid")
+    payload_b64, sig = state.split(".", 1)
+    forged = google_oauth.base64.urlsafe_b64encode(b"someone-else:9999999999").decode().rstrip("=")
+    tampered = f"{forged}.{sig}"
+    with pytest.raises(google_oauth.GoogleOAuthError):
+        google_oauth.verify_state(tampered)
+
+
+def test_google_oauth_state_rejects_expired(monkeypatch):
+    import time as time_module
+
+    from app import google_oauth
+
+    state = google_oauth.sign_state("some-uid")
+    real_time = time_module.time()
+    monkeypatch.setattr(
+        google_oauth.time, "time",
+        lambda: real_time + google_oauth._STATE_TTL_SECONDS + 60,
+    )
+    with pytest.raises(google_oauth.GoogleOAuthError):
+        google_oauth.verify_state(state)
 
 
 def test_google_oauth_callback_rejects_invalid_state():
@@ -447,6 +478,65 @@ def test_google_connector_rejects_run_without_authenticated_uid():
     from app.connectors.library import GmailSend
     with pytest.raises(Exception):
         GmailSend().run({"to": "a@b.com", "body": "hi"}, {})
+
+
+def test_gmail_send_rejects_header_injection(monkeypatch):
+    from app.connectors.base import ConnectorError
+    from app.connectors.library import GmailSend
+
+    monkeypatch.setenv("GMAIL_TOKEN", "fake-gmail-token")
+    context = {"_uid": "dev-user"}
+
+    with pytest.raises(ConnectorError):
+        GmailSend().run(
+            {"to": "a@b.com", "subject": "hi\r\nBcc: attacker@evil.com", "body": "hi"},
+            context,
+        )
+    with pytest.raises(ConnectorError):
+        GmailSend().run(
+            {"to": "a@b.com\r\nBcc: attacker@evil.com", "body": "hi"},
+            context,
+        )
+
+
+def test_sheets_append_escapes_url_path_segments(monkeypatch):
+    import httpx as httpx_module
+
+    from app.connectors.library import SheetsAppend
+
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"updates": {"updatedRange": "A2"}}
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
+
+        def post(self, url, **k):
+            captured["url"] = url
+            return FakeResponse()
+
+    monkeypatch.setenv("SHEETS_TOKEN", "fake-sheets-token")
+    monkeypatch.setattr(httpx_module, "Client", FakeClient)
+
+    SheetsAppend().run(
+        {"spreadsheet_id": "abc&evil=1", "range": "Sheet 1!A1", "row": {"a": 1}},
+        {"_uid": "dev-user"},
+    )
+    assert "&evil=1" not in captured["url"]
+    assert "abc%26evil%3D1" in captured["url"]
+    assert "Sheet%201%21A1" in captured["url"]
 
 
 def test_validator_rejects_unknown_connector():

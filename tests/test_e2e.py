@@ -264,8 +264,9 @@ def test_google_oauth_callback_stores_tokens(monkeypatch):
         lambda code: {"access_token": "tok", "refresh_token": "refresh", "expires_in": 3600},
     )
     state = google_oauth.sign_state("dev-user")
-    r = client.get("/oauth/google/callback", params={"code": "abc", "state": state})
-    assert r.status_code == 200
+    r = client.get("/oauth/google/callback", params={"code": "abc", "state": state}, follow_redirects=False)
+    assert r.status_code == 307
+    assert "google_connected=1" in r.headers["location"]
     assert google_oauth.is_connected("dev-user")
 
 

@@ -8,3 +8,4 @@ firebase-service-account*.json
 .claude/
 .frontend/
 node_modules/
+.DS_Store

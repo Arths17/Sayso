@@ -68,6 +68,23 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://d3e54v103j8qbb.cloudfront.net" />
 
         <style>{`
+/* Webflow only ever generated .mono / .all-caps / .color-white-50 as
+   compound combos (e.g. .ts-14px.mono), never as standalone utilities.
+   These fill the gap with the same tokens the landing page uses elsewhere
+   (TWK Everett Mono font, --color--grey-300) so app pages outside the
+   Webflow-authored combos still render in the same style/palette. */
+.mono {
+  font-family: "TWK Everett Mono", Arial, sans-serif;
+}
+
+.all-caps {
+  text-transform: uppercase;
+}
+
+.color-white-50 {
+  color: var(--color--grey-300);
+}
+
 html.lenis,
 html.lenis body {
   height: auto;

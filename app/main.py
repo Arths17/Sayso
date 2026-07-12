@@ -125,6 +125,12 @@ async def run(workflow_id: str, user=Depends(get_current_user)):
     return await _start_run(workflow_id, dry_run=False, user=user)
 
 
+@router.get("/workflows/{workflow_id}/executions")
+def list_executions(workflow_id: str, user=Depends(get_current_user)):
+    _get_owned_workflow(workflow_id, user)
+    return repository.list_executions(workflow_id)
+
+
 @router.get("/workflows/{workflow_id}/status")
 def status(workflow_id: str, execution_id: str | None = None, user=Depends(get_current_user)):
     _get_owned_workflow(workflow_id, user)

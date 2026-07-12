@@ -216,6 +216,10 @@ class ApiClient {
     });
   }
 
+  async listWorkflows(): Promise<WorkflowRecord[]> {
+    return this.request("/workflows");
+  }
+
   async getWorkflow(workflowId: string): Promise<WorkflowRecord> {
     return this.request(`/workflows/${workflowId}`);
   }
@@ -230,6 +234,10 @@ class ApiClient {
     return this.request(`/workflows/${workflowId}/run`, {
       method: "POST",
     });
+  }
+
+  async listExecutions(workflowId: string): Promise<Execution[]> {
+    return this.request(`/workflows/${workflowId}/executions`);
   }
 
   async getStatus(workflowId: string, executionId?: string): Promise<Execution> {

@@ -11,3 +11,4 @@ pytest-asyncio>=0.23
 pypdf>=5.0
 transformers
 torch
+pypdf

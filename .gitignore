@@ -9,3 +9,4 @@ firebase-service-account*.json
 .frontend/
 node_modules/
 .DS_Store
+web/.env.local

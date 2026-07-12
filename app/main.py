@@ -3,10 +3,14 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from app import google_oauth, service
 from app.agents import explainer
 from app.auth import get_current_user
+from app.config import settings
+from app.config import settings
 from app.connectors import registry
 from app.engine import executor
 from app.schemas import (
@@ -23,6 +27,13 @@ from app.schemas import (
 from app.storage import repository, versions
 
 app = FastAPI(title="Sayso", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
@@ -61,13 +72,13 @@ async def google_oauth_callback(code: str, state: str):
     try:
         uid = google_oauth.verify_state(state)
     except google_oauth.GoogleOAuthError as e:
-        raise HTTPException(400, str(e)) from e
+        return RedirectResponse(f"{settings.frontend_url}/integrations?google_error={e}")
     try:
         token_response = google_oauth.exchange_code(code)
         google_oauth.store_tokens(uid, token_response)
     except google_oauth.GoogleOAuthError as e:
-        raise HTTPException(400, str(e)) from e
-    return {"connected": True}
+        return RedirectResponse(f"{settings.frontend_url}/integrations?google_error={e}")
+    return RedirectResponse(f"{settings.frontend_url}/integrations?google_connected=1")
 
 
 @router.post("/workflows/generate", response_model=GenerateResponse)
@@ -86,6 +97,11 @@ def edit(workflow_id: str, req: EditRequest, user=Depends(get_current_user)):
     _get_owned_workflow(workflow_id, user)
     record, version = service.edit(workflow_id, req.instruction)
     return {"workflow_id": workflow_id, "version": version.id, "diff": version.diff, "spec": record.spec}
+
+
+@router.get("/workflows")
+def list_workflows(user=Depends(get_current_user)):
+    return repository.list_workflows(user.uid)
 
 
 @router.get("/workflows/{workflow_id}")
@@ -109,6 +125,12 @@ async def dry_run(workflow_id: str, user=Depends(get_current_user)):
 @router.post("/workflows/{workflow_id}/run", response_model=RunResponse)
 async def run(workflow_id: str, user=Depends(get_current_user)):
     return await _start_run(workflow_id, dry_run=False, user=user)
+
+
+@router.get("/workflows/{workflow_id}/executions")
+def list_executions(workflow_id: str, user=Depends(get_current_user)):
+    _get_owned_workflow(workflow_id, user)
+    return repository.list_executions(workflow_id)
 
 
 @router.get("/workflows/{workflow_id}/status")
@@ -137,8 +159,9 @@ async def heal_approval(workflow_id: str, execution_id: str, req: HealApprovalRe
     if not req.approve:
         from app.schemas import ExecutionState
         execution.state = ExecutionState.failed
+        execution.pending_heal = None
         repository.save_execution(execution)
-        return {"applied": False, "state": execution.state}
+        return {"applied": False, "state": execution.state, "execution_id": execution.id}
     execution = await executor.apply_heal_and_resume(record.spec, execution)
     versions.create_version(workflow_id, record.spec, message="self-heal patch applied")
     return {"applied": True, "state": execution.state, "execution_id": execution.id}

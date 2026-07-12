@@ -29,7 +29,7 @@ Output: {
   "trigger": {"type": "GmailTrigger", "config": {"query": "has:attachment subject:invoice"}, "reasoning": "Invoices arrive as email attachments."},
   "variables": {"approval_threshold": 5000},
   "nodes": [
-    {"id": "extract_text", "type": "connector", "connector": "PDFExtractText", "config": {"source": "{{ trigger.attachment }}"}, "depends_on": [], "reasoning": "The invoice body lives inside the PDF attachment."},
+    {"id": "extract_text", "type": "connector", "connector": "PDFExtractText", "config": {"source": {"message_id": "{{ trigger.message_id }}", "attachment_id": "{{ trigger.attachment_id }}"}}, "depends_on": [], "reasoning": "The invoice body lives inside the PDF attachment."},
     {"id": "extract_fields", "type": "connector", "connector": "LLMExtractFields", "config": {"text": "{{ extract_text.text }}", "schema": {"vendor": "string", "amount": "number", "due_date": "string"}}, "depends_on": ["extract_text"], "reasoning": "Turn raw invoice text into structured fields for routing."},
     {"id": "check_amount", "type": "conditional", "condition": "{{ extract_fields.amount }} > {{ approval_threshold }}", "true_branch": ["approve_large"], "false_branch": [], "depends_on": ["extract_fields"], "reasoning": "Large invoices need a human sign-off before being recorded."},
     {"id": "approve_large", "type": "human_approval", "config": {"prompt": "Approve large invoice payment?"}, "depends_on": ["check_amount"], "reasoning": "Human approval gate for high-value invoices."},
@@ -69,7 +69,7 @@ Output: {
 Every step MUST include a one-sentence `reasoning` field explaining WHY it exists."""
 
 def plan(prompt: str, answers: dict[str, str] | None = None) -> WorkflowSpec:
-    system = _BASE_SYSTEM.replace("{connectors}", ", ".join(registry.available()))
+    system = _BASE_SYSTEM.replace("{connectors}", registry.connector_schema())
     user = f"Request: {prompt}"
     if answers:
         user += "\nClarifications: " + json.dumps(answers)

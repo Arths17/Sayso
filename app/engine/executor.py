@@ -52,8 +52,21 @@ async def run_execution(spec: WorkflowSpec, execution: Execution) -> Execution:
     execution.state = ExecutionState.running
     repository.save_execution(execution)
 
+    try:
+        return await _run_execution_loop(graph, execution)
+    except Exception as e:
+        # A bug anywhere in the loop below must never leave the execution stuck at
+        # "running" forever — always land on a real terminal state.
+        execution.state = ExecutionState.failed
+        _log(execution, "_execution", status=NodeStatus.failed, error=str(e))
+        repository.save_execution(execution)
+        return execution
+
+
+async def _run_execution_loop(graph: CompiledGraph, execution: Execution) -> Execution:
+    spec = graph.spec
     context = execution.context
-    context.setdefault("trigger", _trigger_output(spec, execution.dry_run))
+    context.setdefault("trigger", _trigger_output(spec, execution.dry_run, context))
     context.setdefault("_vars", spec.variables)
     for k, v in spec.variables.items():
         context.setdefault(k, v)
@@ -179,7 +192,17 @@ async def _execute_node(
         execution.state = ExecutionState.failed
         return True
 
-    patch = healer.heal(graph.spec, node, last_error or "unknown error")
+    try:
+        patch = healer.heal(graph.spec, node, last_error or "unknown error")
+    except Exception as heal_err:
+        # A broken healing attempt (LLM hiccup, etc.) must not leave the execution
+        # stuck at "running" forever — degrade to a clean failure instead.
+        repository.log_decision(
+            execution.workflow_id, "healer", {"error": str(heal_err), "original_error": last_error}
+        )
+        execution.state = ExecutionState.failed
+        return True
+
     repository.log_decision(execution.workflow_id, "healer", patch.model_dump())
     execution.pending_heal = patch
     execution.state = ExecutionState.awaiting_heal_approval
@@ -202,14 +225,14 @@ async def _run_body_node(node: Node, context: dict, dry_run: bool, iter_disabled
     return result.output
 
 
-def _trigger_output(spec: WorkflowSpec, dry_run: bool) -> dict:
+def _trigger_output(spec: WorkflowSpec, dry_run: bool, context: dict) -> dict:
     trig = spec.trigger
     if trig.type != "manual" and registry.has_connector(trig.type):
         connector = registry.resolve(trig.type)
         if dry_run or settings.force_mock_connectors:
             connector = MockConnector(connector)
-            return connector.execute(trig.config, {}).output or {}
-        return connector.execute(trig.config, {}, False).output or {}
+            return connector.execute(trig.config, context).output or {}
+        return connector.execute(trig.config, context, False).output or {}
     return {}
 
 

@@ -110,7 +110,7 @@ class InMemoryStore(Store):
         with self._lock:
             v = self._google_tokens.get(uid)
             if v:
-                return self.__copy(v)
+                return self._copy(v)
             else:
                 return None
 

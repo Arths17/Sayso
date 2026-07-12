@@ -9,81 +9,9 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
-import { auth, googleProvider } from "@/lib/firebase";
+import { auth, googleProvider, firebaseReady, firebaseAuthMessage } from "@/lib/firebase";
 import { apiClient } from "@/app/api/index";
-
-const NS = "http://www.w3.org/2000/svg";
-const DOT = 2;
-const TARGET = 12;
-const DOT_COLOR = "#343940";
-
-function dotPositions(length: number) {
-  const span = Math.max(0, length - DOT);
-  const n = Math.max(1, Math.round(span / TARGET));
-  const step = span / n;
-  const arr: number[] = [];
-  for (let i = 0; i <= n; i++) arr.push(Math.round(i * step));
-  return arr;
-}
-
-function DottedFrame() {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-
-  useEffect(() => {
-    const wrap = wrapRef.current;
-    const svg = svgRef.current;
-    if (!wrap || !svg) return;
-
-    const draw = () => {
-      const w = Math.round(wrap.offsetWidth);
-      const h = Math.round(wrap.offsetHeight);
-      if (!w || !h) return;
-
-      svg.setAttribute("width", String(w));
-      svg.setAttribute("height", String(h));
-      svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-      while (svg.firstChild) svg.removeChild(svg.firstChild);
-
-      const addDot = (x: number, y: number) => {
-        const r = document.createElementNS(NS, "rect");
-        r.setAttribute("x", String(x));
-        r.setAttribute("y", String(y));
-        r.setAttribute("width", String(DOT));
-        r.setAttribute("height", String(DOT));
-        r.setAttribute("fill", DOT_COLOR);
-        r.setAttribute("shape-rendering", "crispEdges");
-        svg.appendChild(r);
-      };
-
-      const xs = dotPositions(w);
-      const ys = dotPositions(h);
-      const lastY = ys[ys.length - 1];
-
-      xs.forEach((x) => {
-        addDot(x, 0);
-        addDot(x, h - DOT);
-      });
-
-      ys.forEach((y) => {
-        if (y === 0 || y === lastY) return;
-        addDot(0, y);
-        addDot(w - DOT, y);
-      });
-    };
-
-    draw();
-    const ro = new ResizeObserver(draw);
-    ro.observe(wrap);
-    return () => ro.disconnect();
-  }, []);
-
-  return (
-    <div ref={wrapRef} className="login_dotted-frame">
-      <svg ref={svgRef} className="login_dotted-frame-svg" />
-    </div>
-  );
-}
+import DottedFrame from "@/app/components/DottedFrame";
 
 function NoiseCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -165,12 +93,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const afterAuth = async () => {
+    if (!auth) return;
     const token = await auth.currentUser?.getIdToken();
     if (token) apiClient.setToken(token);
-    router.push("/");
+    router.push("/dashboard");
   };
 
   const handleGoogle = async () => {
+    if (!auth || !googleProvider) {
+      setError(firebaseAuthMessage);
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -184,6 +117,10 @@ export default function LoginPage() {
   };
 
   const handlePasswordSubmit = async () => {
+    if (!auth) {
+      setError(firebaseAuthMessage);
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -211,9 +148,9 @@ export default function LoginPage() {
         <div className="container-1400 w-container login_container">
           <div className="login_card">
             <DottedFrame />
-            <a href="/" className="login_brand login_reveal login_reveal-2">
+            <Link href="/" className="login_brand login_reveal login_reveal-2">
               <span className="ts-14px color-white mono all-caps">Sayso</span>
-            </a>
+            </Link>
 
             <div key={step} className="login_step">
               {step === "email" ? (
@@ -264,6 +201,8 @@ export default function LoginPage() {
                     </div>
 
                     {error && <p className="ts-12px login_error">{error}</p>}
+
+                    {!firebaseReady && <p className="ts-12px login_error">{firebaseAuthMessage}</p>}
 
                     <button type="submit" className="cta-button is--blue login_submit">
                       Continue
@@ -453,18 +392,6 @@ export default function LoginPage() {
           padding: 3em 2.5em;
           background-color: #131518;
           box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55);
-        }
-
-        .login_dotted-frame {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-        }
-
-        .login_dotted-frame-svg {
-          position: absolute;
-          inset: 0;
-          display: block;
         }
 
         .login_brand {

@@ -56,7 +56,7 @@ def _invoice_plan(text: str, answers: dict) -> dict:
                 "id": "extract_text",
                 "type": "connector",
                 "connector": "PDFExtractText",
-                "config": {"source": "{{ trigger.attachment }}"},
+                "config": {"source": {"message_id": "{{ trigger.message_id }}", "attachment_id": "{{ trigger.attachment_id }}"}},
                 "depends_on": [],
                 "reasoning": "The invoice body lives inside the PDF attachment.",
             },

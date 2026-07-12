@@ -45,7 +45,7 @@ class GmailTrigger(Connector):
             msg_id = found[0]["id"]
             m = c.get(
                 f"{_GMAIL}/messages/{msg_id}",
-                params={"format": "metadata", "metadataHeaders": ["From", "Subject"]},
+                params={"format": "metadata", "metadataHeaders": ["From", "Subject", "Date"]},
             )
             m.raise_for_status()
             data = m.json()
@@ -61,6 +61,7 @@ class GmailTrigger(Connector):
                 "message_id": msg_id,
                 "from": hdrs.get("From"),
                 "subject": hdrs.get("Subject"),
+                "date": hdrs.get("Date"),
                 "attachment_id": attachment_id,
             }
         )
@@ -71,7 +72,8 @@ class GmailTrigger(Connector):
                 "message_id": "msg_123",
                 "from": "billing@acme.com",
                 "subject": "Invoice #4491",
-                "attachment": "invoice_4491.pdf",
+                "date": "Mon, 12 Jul 2026 12:00:00 +0000",
+                "attachment_id": "att_123",
             }
         )
 

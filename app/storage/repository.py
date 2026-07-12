@@ -28,6 +28,11 @@ def get_workflow(workflow_id: str) -> WorkflowRecord | None:
     return WorkflowRecord.model_validate(data) if data else None
 
 
+def list_workflows(owner_uid: str) -> list[WorkflowRecord]:
+    records = [WorkflowRecord.model_validate(d) for d in get_store().list_workflows()]
+    return [r for r in records if r.owner_uid == owner_uid]
+
+
 def update_spec(workflow_id: str, spec: WorkflowSpec, message: str) -> WorkflowRecord:
     versions.create_version(workflow_id, spec, message=message)
     return get_workflow(workflow_id)
@@ -52,6 +57,11 @@ def save_execution(execution: Execution) -> None:
 def get_execution(workflow_id: str, execution_id: str) -> Execution | None:
     data = get_store().get_execution(workflow_id, execution_id)
     return Execution.model_validate(data) if data else None
+
+
+def list_executions(workflow_id: str) -> list[Execution]:
+    execs = [Execution.model_validate(d) for d in get_store().list_executions(workflow_id)]
+    return sorted(execs, key=lambda e: e.created_at or "", reverse=True)
 
 
 def new_execution(workflow_id: str, version_id: str | None, dry_run: bool) -> Execution:

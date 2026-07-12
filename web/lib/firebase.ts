@@ -11,6 +11,17 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-export const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
-export const auth = getAuth(firebaseApp);
-export const googleProvider = new GoogleAuthProvider();
+const isConfigured =
+  !!firebaseConfig.apiKey &&
+  !!firebaseConfig.authDomain &&
+  !!firebaseConfig.projectId &&
+  !!firebaseConfig.storageBucket &&
+  !!firebaseConfig.messagingSenderId &&
+  !!firebaseConfig.appId;
+
+export const firebaseReady = isConfigured;
+export const firebaseApp = isConfigured ? (getApps().length ? getApp() : initializeApp(firebaseConfig)) : null;
+export const auth = firebaseApp ? getAuth(firebaseApp) : null;
+export const googleProvider = firebaseApp ? new GoogleAuthProvider() : null;
+export const firebaseAuthMessage =
+  "Firebase auth is not configured for this web app. Set the NEXT_PUBLIC_FIREBASE_* environment variables to enable login.";

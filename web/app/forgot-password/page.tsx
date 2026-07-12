@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
-import { auth } from "@/lib/firebase";
+import { auth, firebaseReady, firebaseAuthMessage } from "@/lib/firebase";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -12,6 +13,10 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
+    if (!auth) {
+      setError(firebaseAuthMessage);
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -33,9 +38,9 @@ export default function ForgotPasswordPage() {
       <div className="padding-global login_body">
         <div className="container-1400 w-container login_container">
           <div className="login_card">
-            <a href="/login" className="login_back">
+            <Link href="/login" className="login_back">
               <span className="ts-12px color-white-50 mono all-caps">← Back</span>
-            </a>
+            </Link>
 
             <h1 className="ts-16px color-white login_title">Reset your password</h1>
 
@@ -73,6 +78,8 @@ export default function ForgotPasswordPage() {
                   </div>
 
                   {error && <p className="ts-12px login_error">{error}</p>}
+
+                  {!firebaseReady && <p className="ts-12px login_error">{firebaseAuthMessage}</p>}
 
                   <button type="submit" className="cta-button is--blue login_submit" disabled={loading}>
                     {loading ? "Sending..." : "Send reset link"}

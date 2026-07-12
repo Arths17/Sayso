@@ -68,6 +68,23 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://d3e54v103j8qbb.cloudfront.net" />
 
         <style>{`
+/* Webflow only ever generated .mono / .all-caps / .color-white-50 as
+   compound combos (e.g. .ts-14px.mono), never as standalone utilities.
+   These fill the gap with the same tokens the landing page uses elsewhere
+   (TWK Everett Mono font, --color--grey-300) so app pages outside the
+   Webflow-authored combos still render in the same style/palette. */
+.mono {
+  font-family: "TWK Everett Mono", Arial, sans-serif;
+}
+
+.all-caps {
+  text-transform: uppercase;
+}
+
+.color-white-50 {
+  color: var(--color--grey-300);
+}
+
 html.lenis,
 html.lenis body {
   height: auto;
@@ -400,6 +417,44 @@ new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','GTM-5C9KVWT');
+`}</Script>
+        <Script id="lenis-noop-guard" strategy="beforeInteractive">{`
+(function () {
+  function isSafari16or17() {
+    var ua = navigator.userAgent;
+    var isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+    if (!isSafari) return false;
+    var versionMatch = ua.match(/version\\/(\\d+)/i);
+    if (versionMatch) {
+      var version = parseInt(versionMatch[1], 10);
+      return version === 16 || version === 17;
+    }
+    return false;
+  }
+  if (isSafari16or17()) return;
+  function NoopLenis() {
+    return {
+      version: '0',
+      touch: 'ontouchstart' in window,
+      isStopped: false,
+      isLocked: false,
+      start: function () {},
+      stop: function () {},
+      raf: function () {},
+      destroy: function () {},
+      on: function () {},
+      off: function () {},
+      scrollTo: function () {}
+    };
+  }
+  Object.defineProperty(window, 'Lenis', {
+    configurable: true,
+    set: function () {
+      Object.defineProperty(window, 'Lenis', { value: NoopLenis, configurable: true, writable: true });
+    },
+    get: function () { return NoopLenis; }
+  });
+})();
 `}</Script>
       </head>
       <body>

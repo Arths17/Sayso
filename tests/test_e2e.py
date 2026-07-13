@@ -12,14 +12,14 @@ client = TestClient(app)
 
 
 def test_health():
-    r = client.get("/health")
+    r = client.get("/api/health")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
     assert "GmailSend" in r.json()["connectors"]
 
 
 def test_generate_invoice_workflow():
-    r = client.post("/workflows/generate", json={"prompt": "Process invoice emails, if amount > 5000 require approval, log to sheet, notify #finance"})
+    r = client.post("/api/workflows/generate", json={"prompt": "Process invoice emails, if amount > 5000 require approval, log to sheet, notify #finance"})
     body = r.json()
     assert body["status"] == "validated"
     ids = [n["id"] for n in body["spec"]["nodes"]]
@@ -28,20 +28,20 @@ def test_generate_invoice_workflow():
 
 
 def test_clarify_flow():
-    r = client.post("/workflows/generate", json={"prompt": "Send an email when something happens"})
+    r = client.post("/api/workflows/generate", json={"prompt": "Send an email when something happens"})
     body = r.json()
     assert body["status"] == "needs_clarification"
     wid = body["workflow_id"]
     q = body["clarification"]["questions"][0]
-    r2 = client.post(f"/workflows/{wid}/clarify", json={"answers": {q: "send to alerts@company.com"}})
+    r2 = client.post(f"/api/workflows/{wid}/clarify", json={"answers": {q: "send to alerts@company.com"}})
     assert r2.json()["status"] == "validated"
 
 
 def test_clarify_accumulates_answers_across_rounds():
-    r = client.post("/workflows/generate", json={"prompt": "Send an email when something happens"})
+    r = client.post("/api/workflows/generate", json={"prompt": "Send an email when something happens"})
     wid = r.json()["workflow_id"]
-    client.post(f"/workflows/{wid}/clarify", json={"answers": {"unrelated question": "unrelated answer"}})
-    r2 = client.post(f"/workflows/{wid}/clarify", json={"answers": {"which recipient": "send to ops@company.com"}})
+    client.post(f"/api/workflows/{wid}/clarify", json={"answers": {"unrelated question": "unrelated answer"}})
+    r2 = client.post(f"/api/workflows/{wid}/clarify", json={"answers": {"which recipient": "send to ops@company.com"}})
     assert r2.json()["status"] == "validated"
     record = repository.get_workflow(wid)
     assert record.clarification_answers == {
@@ -51,39 +51,39 @@ def test_clarify_accumulates_answers_across_rounds():
 
 
 def test_dry_run_and_status():
-    r = client.post("/workflows/generate", json={"prompt": "Process invoices, email finance@company.com"})
+    r = client.post("/api/workflows/generate", json={"prompt": "Process invoices, email finance@company.com"})
     wid = r.json()["workflow_id"]
-    run = client.post(f"/workflows/{wid}/dry-run").json()
+    run = client.post(f"/api/workflows/{wid}/dry-run").json()
     assert run["state"] == "completed"
-    status = client.get(f"/workflows/{wid}/status", params={"execution_id": run["execution_id"]}).json()
+    status = client.get(f"/api/workflows/{wid}/status", params={"execution_id": run["execution_id"]}).json()
     assert status["state"] == "completed"
     assert all(l["status"] in ("succeeded", "skipped") for l in status["logs"])
 
 
 def test_explain_node():
-    r = client.post("/workflows/generate", json={"prompt": "Process invoices, email finance@company.com"})
+    r = client.post("/api/workflows/generate", json={"prompt": "Process invoices, email finance@company.com"})
     wid = r.json()["workflow_id"]
-    r2 = client.get(f"/workflows/{wid}/nodes/check_amount/explain")
+    r2 = client.get(f"/api/workflows/{wid}/nodes/check_amount/explain")
     assert r2.status_code == 200
     assert len(r2.json()["explanation"]) > 0
 
 
 def test_edit_creates_version_with_diff():
-    r = client.post("/workflows/generate", json={"prompt": "Process invoices, email finance@company.com"})
+    r = client.post("/api/workflows/generate", json={"prompt": "Process invoices, email finance@company.com"})
     wid = r.json()["workflow_id"]
-    before = client.get(f"/workflows/{wid}/versions").json()
-    r2 = client.post(f"/workflows/{wid}/edit", json={"instruction": "only run if amount > 500"})
+    before = client.get(f"/api/workflows/{wid}/versions").json()
+    r2 = client.post(f"/api/workflows/{wid}/edit", json={"instruction": "only run if amount > 500"})
     assert "diff" in r2.json()
-    after = client.get(f"/workflows/{wid}/versions").json()
+    after = client.get(f"/api/workflows/{wid}/versions").json()
     assert len(after) == len(before) + 1
 
 
 def test_revert():
-    r = client.post("/workflows/generate", json={"prompt": "Process invoices, email finance@company.com"})
+    r = client.post("/api/workflows/generate", json={"prompt": "Process invoices, email finance@company.com"})
     wid = r.json()["workflow_id"]
-    v0 = client.get(f"/workflows/{wid}/versions").json()[0]["id"]
-    client.post(f"/workflows/{wid}/edit", json={"instruction": "add a step"})
-    rev = client.post(f"/workflows/{wid}/revert/{v0}").json()
+    v0 = client.get(f"/api/workflows/{wid}/versions").json()[0]["id"]
+    client.post(f"/api/workflows/{wid}/edit", json={"instruction": "add a step"})
+    rev = client.post(f"/api/workflows/{wid}/revert/{v0}").json()
     assert rev["reverted_to"] == v0
     assert rev["new_version"] != v0
 
@@ -134,30 +134,30 @@ def test_workflow_access_denied_to_non_owner():
     from app.auth import AuthedUser, get_current_user
     from app.main import app
 
-    r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
+    r = client.post("/api/workflows/generate", json={"prompt": "notify #finance"})
     wid = r.json()["workflow_id"]
 
     app.dependency_overrides[get_current_user] = lambda: AuthedUser(uid="someone-else")
     try:
-        r2 = client.get(f"/workflows/{wid}")
+        r2 = client.get(f"/api/workflows/{wid}")
         assert r2.status_code == 403
     finally:
         app.dependency_overrides.pop(get_current_user, None)
 
     # the actual owner (dev-user) can still access it
-    r3 = client.get(f"/workflows/{wid}")
+    r3 = client.get(f"/api/workflows/{wid}")
     assert r3.status_code == 200
 
 
 def test_workflow_owner_uid_set_on_creation():
-    r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
+    r = client.post("/api/workflows/generate", json={"prompt": "notify #finance"})
     wid = r.json()["workflow_id"]
     record = repository.get_workflow(wid)
     assert record.owner_uid == "dev-user"
 
 
 def test_workflows_accessible_without_token_when_auth_disabled():
-    r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
+    r = client.post("/api/workflows/generate", json={"prompt": "notify #finance"})
     assert r.status_code == 200
 
 
@@ -168,7 +168,7 @@ def test_auth_rejects_missing_token_when_enabled(monkeypatch):
         auth_enabled = True
 
     monkeypatch.setattr(auth, "settings", FakeSettings())
-    r = client.post("/workflows/generate", json={"prompt": "notify #finance"})
+    r = client.post("/api/workflows/generate", json={"prompt": "notify #finance"})
     assert r.status_code == 401
 
 
@@ -189,7 +189,7 @@ def test_auth_rejects_invalid_token_when_enabled(monkeypatch):
     monkeypatch.setattr(firebase_auth, "verify_id_token", fake_verify)
 
     r = client.post(
-        "/workflows/generate",
+        "/api/workflows/generate",
         json={"prompt": "notify #finance"},
         headers={"Authorization": "Bearer not-a-real-token"},
     )
@@ -242,7 +242,7 @@ def test_openrouter_failure_raises_when_local_model_also_unavailable(monkeypatch
 
 
 def test_google_oauth_start_requires_configured_client():
-    r = client.get("/oauth/google/start")
+    r = client.get("/api/oauth/google/start")
     assert r.status_code == 400
 
 
@@ -252,7 +252,7 @@ def test_google_oauth_start_returns_auth_url(monkeypatch):
     monkeypatch.setattr(google_oauth.settings, "google_oauth_client_id", "fake-id")
     monkeypatch.setattr(google_oauth.settings, "google_oauth_client_secret", "fake-secret")
 
-    r = client.get("/oauth/google/start")
+    r = client.get("/api/oauth/google/start")
     assert r.status_code == 200
     assert "accounts.google.com" in r.json()["auth_url"]
 
@@ -265,7 +265,7 @@ def test_google_oauth_callback_stores_tokens(monkeypatch):
         lambda code: {"access_token": "tok", "refresh_token": "refresh", "expires_in": 3600},
     )
     state = google_oauth.sign_state("dev-user")
-    r = client.get("/oauth/google/callback", params={"code": "abc", "state": state}, follow_redirects=False)
+    r = client.get("/api/oauth/google/callback", params={"code": "abc", "state": state}, follow_redirects=False)
     assert r.status_code == 307
     assert "google_connected=1" in r.headers["location"]
     assert google_oauth.is_connected("dev-user")
@@ -306,7 +306,7 @@ def test_google_oauth_state_rejects_expired(monkeypatch):
 
 def test_google_oauth_callback_rejects_invalid_state():
     r = client.get(
-        "/oauth/google/callback",
+        "/api/oauth/google/callback",
         params={"code": "abc", "state": "not-valid-base64!!"},
         follow_redirects=False,
     )
@@ -499,11 +499,14 @@ def test_sheets_append_escapes_url_path_segments(monkeypatch):
     captured = {}
 
     class FakeResponse:
+        def __init__(self, data):
+            self._data = data
+
         def raise_for_status(self):
             pass
 
         def json(self):
-            return {"updates": {"updatedRange": "A2"}}
+            return self._data
 
     class FakeClient:
         def __init__(self, *a, **k):
@@ -515,15 +518,19 @@ def test_sheets_append_escapes_url_path_segments(monkeypatch):
         def __exit__(self, *a):
             pass
 
+        def get(self, url, **k):
+            return FakeResponse({"files": [{"id": "abc&evil=1", "name": "Sheet name"}]})
+
         def post(self, url, **k):
             captured["url"] = url
-            return FakeResponse()
+            return FakeResponse({"updates": {"updatedRange": "A2"}})
 
     monkeypatch.setenv("SHEETS_TOKEN", "fake-sheets-token")
+    monkeypatch.setenv("DRIVE_TOKEN", "fake-drive-token")
     monkeypatch.setattr(httpx_module, "Client", FakeClient)
 
     SheetsAppend().run(
-        {"spreadsheet_id": "abc&evil=1", "range": "Sheet 1!A1", "row": {"a": 1}},
+        {"spreadsheet_id": "Sheet name", "range": "Sheet 1!A1", "row": {"a": 1}},
         {"_uid": "dev-user"},
     )
     assert "&evil=1" not in captured["url"]
@@ -646,7 +653,7 @@ def test_human_approval_pauses_and_resumes(fake_gmail_send):
     assert ex.state == "awaiting_approval"
     assert ex.pending_approval_node_id == "gate"
 
-    r = client.post(f"/workflows/{rec.id}/executions/{ex.id}/approve", json={"approve": True})
+    r = client.post(f"/api/workflows/{rec.id}/executions/{ex.id}/approve", json={"approve": True})
     body = r.json()
     assert body["state"] == "completed"
 
@@ -666,14 +673,14 @@ def test_human_approval_rejection_fails_execution():
         return await executor.run_execution(rec.spec, ex)
 
     ex = asyncio.run(go())
-    r = client.post(f"/workflows/{rec.id}/executions/{ex.id}/approve", json={"approve": False})
+    r = client.post(f"/api/workflows/{rec.id}/executions/{ex.id}/approve", json={"approve": False})
     assert r.json()["state"] == "failed"
 
 
 def test_for_each_loop_runs():
-    r = client.post("/workflows/generate", json={"prompt": "For each row in the sheet, notify #team"})
+    r = client.post("/api/workflows/generate", json={"prompt": "For each row in the sheet, notify #team"})
     wid = r.json()["workflow_id"]
-    body = client.get(f"/workflows/{wid}").json()
+    body = client.get(f"/api/workflows/{wid}").json()
     assert any(n["type"] == "for_each" for n in body["spec"]["nodes"])
-    run = client.post(f"/workflows/{wid}/dry-run").json()
+    run = client.post(f"/api/workflows/{wid}/dry-run").json()
     assert run["state"] == "completed"

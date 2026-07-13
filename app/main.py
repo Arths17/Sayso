@@ -16,6 +16,7 @@ from app.schemas import (
     ApprovalRequest,
     ClarifyRequest,
     EditRequest,
+    ExecutionState,
     GenerateRequest,
     GenerateResponse,
     HealApprovalRequest,
@@ -33,7 +34,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/api", dependencies=[Depends(get_current_user)])
 
 
 def _get_owned_workflow(workflow_id: str, user) -> WorkflowRecord:
@@ -48,12 +49,12 @@ def _get_owned_workflow(workflow_id: str, user) -> WorkflowRecord:
     return record
 
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
     return {"status": "ok", "service": "sayso", "connectors": registry.available()}
 
 
-@app.get("/oauth/google/start")
+@app.get("/api/oauth/google/start")
 async def google_oauth_start(user=Depends(get_current_user)):
     if not google_oauth.settings.google_oauth_enabled:
         raise HTTPException(400, "Google OAuth not configured (GOOGLE_OAUTH_CLIENT_ID/SECRET)")
@@ -61,12 +62,12 @@ async def google_oauth_start(user=Depends(get_current_user)):
     return {"auth_url": google_oauth.build_auth_url(state)}
 
 
-@app.get("/oauth/google/status")
+@app.get("/api/oauth/google/status")
 async def google_oauth_status(user=Depends(get_current_user)):
     return {"connected": google_oauth.is_connected(user.uid)}
 
 
-@app.get("/oauth/google/callback")
+@app.get("/api/oauth/google/callback")
 async def google_oauth_callback(code: str, state: str):
     try:
         uid = google_oauth.verify_state(state)
@@ -81,14 +82,20 @@ async def google_oauth_callback(code: str, state: str):
 
 
 @router.post("/workflows/generate", response_model=GenerateResponse)
-def generate(req: GenerateRequest, user=Depends(get_current_user)):
-    return service.generate(req.prompt, owner_uid=user.uid)
+async def generate(req: GenerateRequest, user=Depends(get_current_user)):
+    result = await asyncio.to_thread(service.generate, req.prompt, owner_uid=user.uid)
+    if result.status == "validated" and result.spec:
+        executor.start_continuous_execution(result.workflow_id, result.spec, user.uid)
+    return result
 
 
 @router.post("/workflows/{workflow_id}/clarify", response_model=GenerateResponse)
-def clarify(workflow_id: str, req: ClarifyRequest, user=Depends(get_current_user)):
+async def clarify(workflow_id: str, req: ClarifyRequest, user=Depends(get_current_user)):
     _get_owned_workflow(workflow_id, user)
-    return service.clarify(workflow_id, req.answers)
+    result = await asyncio.to_thread(service.clarify, workflow_id, req.answers)
+    if result.status == "validated" and result.spec:
+        executor.start_continuous_execution(workflow_id, result.spec, user.uid)
+    return result
 
 
 @router.post("/workflows/{workflow_id}/edit")
@@ -123,7 +130,19 @@ async def dry_run(workflow_id: str, user=Depends(get_current_user)):
 
 @router.post("/workflows/{workflow_id}/run", response_model=RunResponse)
 async def run(workflow_id: str, user=Depends(get_current_user)):
-    return await _start_run(workflow_id, dry_run=False, user=user)
+    record = _get_owned_workflow(workflow_id, user)
+    executor.start_continuous_execution(workflow_id, record.spec, user.uid)
+    latest = repository.list_executions(workflow_id)
+    if latest:
+        return RunResponse(execution_id=latest[0].id, state=latest[0].state)
+    return RunResponse(execution_id="", state=ExecutionState.running)
+
+
+@router.post("/workflows/{workflow_id}/stop")
+async def stop(workflow_id: str, user=Depends(get_current_user)):
+    _get_owned_workflow(workflow_id, user)
+    await executor.stop_continuous_execution(workflow_id)
+    return {"stopped": True}
 
 
 @router.get("/workflows/{workflow_id}/executions")
@@ -206,7 +225,7 @@ def explain(workflow_id: str, node_id: str, user=Depends(get_current_user)):
     return {"node_id": node_id, "explanation": text}
 
 
-@app.websocket("/workflows/{workflow_id}/stream")
+@app.websocket("/api/workflows/{workflow_id}/stream")
 async def stream(websocket: WebSocket, workflow_id: str, execution_id: str):
     await websocket.accept()
     try:

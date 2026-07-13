@@ -2,13 +2,10 @@
   "version": 2,
   "builds": [
     { "src": "api/index.py", "use": "@vercel/python" },
-    { "src": "web/package.json", "use": "@vercel/static-build", "config": { "distDir": ".next" } }
+    { "src": "web/package.json", "use": "@vercel/next" }
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "api/index.py" },
-    { "src": "/workflows/(.*)", "dest": "api/index.py" },
-    { "src": "/oauth/(.*)", "dest": "api/index.py" },
-    { "src": "/health", "dest": "api/index.py" },
     { "src": "/(.*)", "dest": "web/$1" }
   ]
 }

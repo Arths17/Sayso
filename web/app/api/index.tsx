@@ -1,7 +1,7 @@
 // API Client for Sayso Backend
 // This client connects to all API routes defined in app/main.py
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "/api";
 
 // Types matching app/schemas.py
 export type NodeType = "connector" | "conditional" | "for_each" | "human_approval";
@@ -43,7 +43,7 @@ export interface WorkflowSpec {
 
 export type NodeStatus = "pending" | "running" | "succeeded" | "failed" | "skipped" | "awaiting_approval" | "healing";
 
-export type ExecutionState = "pending" | "running" | "completed" | "failed" | "awaiting_heal_approval" | "awaiting_approval";
+export type ExecutionState = "pending" | "running" | "completed" | "failed" | "stopped" | "awaiting_heal_approval" | "awaiting_approval";
 
 export interface ExecutionLog {
   node_id: string;
@@ -97,6 +97,7 @@ export interface WorkflowRecord {
   updated_at?: string;
   clarification_answers: Record<string, string>;
   owner_uid: string;
+  active: boolean;
 }
 
 export interface ClarificationRequest {
@@ -236,6 +237,12 @@ class ApiClient {
     });
   }
 
+  async stop(workflowId: string): Promise<{ stopped: boolean }> {
+    return this.request(`/workflows/${workflowId}/stop`, {
+      method: "POST",
+    });
+  }
+
   async listExecutions(workflowId: string): Promise<Execution[]> {
     return this.request(`/workflows/${workflowId}/executions`);
   }
@@ -277,7 +284,7 @@ class ApiClient {
   connectStream(workflowId: string, executionId: string, onMessage: (data: { state: ExecutionState; logs: ExecutionLog[] }) => void, onError?: (error: Error) => void): WebSocket {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/workflows/${workflowId}/stream?execution_id=${executionId}`;
+    const wsUrl = `${protocol}//${host}/api/workflows/${workflowId}/stream?execution_id=${executionId}`;
     
     const ws = new WebSocket(wsUrl);
     

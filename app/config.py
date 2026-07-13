@@ -36,7 +36,7 @@ class Settings:
     google_oauth_client_id: str | None = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
     google_oauth_client_secret: str | None = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
     google_oauth_redirect_uri: str = os.getenv(
-        "GOOGLE_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/google/callback"
+        "GOOGLE_OAUTH_REDIRECT_URI", "http://localhost:8000/api/oauth/google/callback"
     )
     frontend_url: str = os.getenv("SAYSO_FRONTEND_URL", "http://localhost:3000")
 

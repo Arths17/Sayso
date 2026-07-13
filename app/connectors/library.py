@@ -15,7 +15,9 @@ from app.connectors.ssrf_guard import assert_public_url
 
 _GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me"
 _DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3/files"
+_DRIVE_FILES = "https://www.googleapis.com/drive/v3/files"
 _SHEETS = "https://sheets.googleapis.com/v4/spreadsheets"
+_SPREADSHEET_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{25,}$")
 
 
 def _google_auth_header(credentials, provider: str, context: dict) -> dict:
@@ -25,10 +27,25 @@ def _google_auth_header(credentials, provider: str, context: dict) -> dict:
     token = credentials.token(provider, uid=uid)
     if token.startswith("stub-token-"):
         raise ConnectorError(
-            f"Google account not connected for this user — visit /oauth/google/start "
+            f"Google account not connected for this user — visit /api/oauth/google/start "
             f"to connect {provider}"
         )
     return {"Authorization": f"Bearer {token}"}
+
+
+def _resolve_spreadsheet_id(credentials, context: dict, value: str) -> str:
+    if _SPREADSHEET_ID_RE.match(value):
+        return value
+    headers = _google_auth_header(credentials, "drive", context)
+    escaped = value.replace("\\", "\\\\").replace("'", "\\'")
+    query = f"name = '{escaped}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+    with httpx.Client(timeout=30, headers=headers) as c:
+        r = c.get(_DRIVE_FILES, params={"q": query, "fields": "files(id,name)"})
+        r.raise_for_status()
+        files = r.json().get("files", [])
+    if not files:
+        raise ConnectorError(f'no Google Sheet named "{value}" found in your Drive')
+    return files[0]["id"]
 
 
 class GmailTrigger(Connector):
@@ -139,7 +156,8 @@ class SheetsAppend(Connector):
         headers = _google_auth_header(self.credentials, "sheets", context)
         row = config.get("row", {})
         values = [list(row.values())] if isinstance(row, dict) else [row]
-        spreadsheet_id = quote(config["spreadsheet_id"], safe="")
+        resolved_id = _resolve_spreadsheet_id(self.credentials, context, config["spreadsheet_id"])
+        spreadsheet_id = quote(resolved_id, safe="")
         range_ = quote(config.get("range", "A1"), safe="")
         with httpx.Client(timeout=30, headers=headers) as c:
             r = c.post(
@@ -170,7 +188,8 @@ class SheetsReadRows(Connector):
         if not config.get("spreadsheet_id"):
             raise ConnectorError("spreadsheet_id not found")
         headers = _google_auth_header(self.credentials, "sheets", context)
-        spreadsheet_id = quote(config["spreadsheet_id"], safe="")
+        resolved_id = _resolve_spreadsheet_id(self.credentials, context, config["spreadsheet_id"])
+        spreadsheet_id = quote(resolved_id, safe="")
         range_ = quote(config.get("range", "Sheet1"), safe="")
         with httpx.Client(timeout=30, headers=headers) as c:
             r = c.get(f"{_SHEETS}/{spreadsheet_id}/values/{range_}")

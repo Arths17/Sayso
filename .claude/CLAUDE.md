@@ -72,7 +72,7 @@ React frontend (React Flow + Tailwind + Firebase Auth) is a later phase, not yet
 - **Hosting:** Vercel, `@vercel/python` serverless functions (`api/index.py`, `vercel.json`)
 - **Execution model:** `asyncio`-based; persists state to Firestore after every node so
   long-running workflows survive across serverless invocations
-- **Realtime updates:** polling (`GET /workflows/{id}/status`) — Vercel functions can't hold
+- **Realtime updates:** polling (`GET /api/workflows/{id}/status`) — Vercel functions can't hold
   persistent WebSocket connections
 
 ## Connectors
@@ -92,17 +92,20 @@ Every connector has a mock-mode implementation for dry-run execution without liv
 
 ## API surface
 
+All routes below live under `/api` (e.g. `/api/workflows/generate`) so they don't collide with
+the Next.js frontend's own `/workflows` and `/workflows/{id}` pages.
+
 ```text
-POST   /workflows/generate        # prompt -> planner -> critic -> (clarify | validated JSON)
-POST   /workflows/{id}/clarify    # answer critic's questions, re-run planner+critic
-POST   /workflows/{id}/edit       # natural language edit -> new version, diff returned
-POST   /workflows/{id}/dry-run    # execute with mocked connectors
-POST   /workflows/{id}/run        # execute for real
-GET    /workflows/{id}/versions   # list version history
-POST   /workflows/{id}/revert/{version}
-GET    /workflows/{id}/nodes/{node_id}/explain
-GET    /workflows/{id}/status     # poll execution status per node
-GET    /health
+POST   /api/workflows/generate        # prompt -> planner -> critic -> (clarify | validated JSON)
+POST   /api/workflows/{id}/clarify    # answer critic's questions, re-run planner+critic
+POST   /api/workflows/{id}/edit       # natural language edit -> new version, diff returned
+POST   /api/workflows/{id}/dry-run    # execute with mocked connectors
+POST   /api/workflows/{id}/run        # execute for real
+GET    /api/workflows/{id}/versions   # list version history
+POST   /api/workflows/{id}/revert/{version}
+GET    /api/workflows/{id}/nodes/{node_id}/explain
+GET    /api/workflows/{id}/status     # poll execution status per node
+GET    /api/health
 ```
 
 ## Advanced features to keep in mind when extending the pipeline

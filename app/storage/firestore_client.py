@@ -187,17 +187,21 @@ class FirestoreStore(Store):
 
 
 _store: Store | None = None
+_store_lock = threading.Lock()
 
 
 def get_store() -> Store:
     global _store
-    if _store is None:
-        if settings.use_firestore:
-            try:
-                _store = FirestoreStore()
-            except Exception as e:
-                logger.warning("Firestore init failed (%s); using in-memory store", e)
+    if _store is not None:
+        return _store
+    with _store_lock:
+        if _store is None:
+            if settings.use_firestore:
+                try:
+                    _store = FirestoreStore()
+                except Exception as e:
+                    logger.warning("Firestore init failed (%s); using in-memory store", e)
+                    _store = InMemoryStore()
+            else:
                 _store = InMemoryStore()
-        else:
-            _store = InMemoryStore()
     return _store

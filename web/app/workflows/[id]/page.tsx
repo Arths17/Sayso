@@ -18,6 +18,8 @@ function stateLabel(state: Execution["state"] | null): string {
       return "Failed";
     case "running":
       return "Running";
+    case "stopped":
+      return "Stopped";
     case "awaiting_heal_approval":
       return "Needs approval (heal)";
     case "awaiting_approval":
@@ -40,6 +42,7 @@ export default function WorkflowDetailPage() {
   const [explainLoading, setExplainLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [healSubmitting, setHealSubmitting] = useState<"approve" | "reject" | null>(null);
+  const [stopping, setStopping] = useState(false);
 
   const refresh = async () => {
     try {
@@ -73,6 +76,25 @@ export default function WorkflowDetailPage() {
     return () => unsub();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, workflowId]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const interval = setInterval(refresh, 4000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, workflowId]);
+
+  const handleStop = async () => {
+    setStopping(true);
+    try {
+      await apiClient.stop(workflowId);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not stop this workflow.");
+    } finally {
+      setStopping(false);
+    }
+  };
 
   const selectedExec = executions.find((e) => e.id === selectedExecId) || null;
 
@@ -142,8 +164,24 @@ export default function WorkflowDetailPage() {
             )}
 
             <div className="wd_trigger">
-              <span className="ts-11px color-white-50 mono all-caps">Trigger</span>
-              <p className="ts-14px color-white">{workflow.spec.trigger.type}</p>
+              <div className="wd_trigger-top">
+                <div>
+                  <span className="ts-11px color-white-50 mono all-caps">Trigger</span>
+                  <p className="ts-14px color-white">{workflow.spec.trigger.type}</p>
+                </div>
+                {workflow.active && (
+                  <button
+                    type="button"
+                    className="wd_stop-btn"
+                    onClick={handleStop}
+                    disabled={stopping}
+                  >
+                    <span className="ts-11px mono all-caps">
+                      {stopping ? "Stopping..." : "Stop workflow"}
+                    </span>
+                  </button>
+                )}
+              </div>
               {workflow.spec.trigger.reasoning && (
                 <p className="ts-13px color-white-50 wd_reasoning">
                   {workflow.spec.trigger.reasoning}
@@ -303,6 +341,28 @@ export default function WorkflowDetailPage() {
 
         .wd_trigger p:first-of-type {
           margin: 0.5em 0 0;
+        }
+
+        .wd_trigger-top {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 1em;
+        }
+
+        .wd_stop-btn {
+          border: 1px solid var(--orange);
+          background-color: transparent;
+          color: var(--orange);
+          padding: 0.625em 1em;
+          cursor: pointer;
+          transition: background-color 0.15s, color 0.15s;
+          white-space: nowrap;
+        }
+
+        .wd_stop-btn:hover {
+          background-color: var(--orange);
+          color: var(--color--black);
         }
 
         .wd_reasoning {

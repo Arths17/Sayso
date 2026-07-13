@@ -14,6 +14,8 @@ function statusLabel(state: ExecutionState | null): string {
       return "Failed";
     case "running":
       return "Running";
+    case "stopped":
+      return "Stopped";
     case "awaiting_heal_approval":
       return "Needs approval (heal)";
     case "awaiting_approval":
@@ -27,9 +29,14 @@ export default function WorkflowCard({ record }: { record: WorkflowRecord }) {
   const router = useRouter();
   const [status, setStatus] = useState<ExecutionState | null>(null);
   const [errorSummary, setErrorSummary] = useState<string | null>(null);
-  const [running, setRunning] = useState<"live" | "dry" | null>(null);
+  const [running, setRunning] = useState<"live" | "dry" | "stop" | null>(null);
+  const [active, setActive] = useState(record.active);
 
   const refreshStatus = () => {
+    apiClient
+      .getWorkflow(record.id)
+      .then((wf) => setActive(wf.active))
+      .catch(() => {});
     apiClient
       .getStatus(record.id)
       .then((ex) => {
@@ -42,6 +49,8 @@ export default function WorkflowCard({ record }: { record: WorkflowRecord }) {
 
   useEffect(() => {
     refreshStatus();
+    const interval = setInterval(refreshStatus, 4000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record.id]);
 
@@ -53,6 +62,17 @@ export default function WorkflowCard({ record }: { record: WorkflowRecord }) {
       refreshStatus();
     } catch {
       setStatus("failed");
+    } finally {
+      setRunning(null);
+    }
+  };
+
+  const handleStop = async () => {
+    setRunning("stop");
+    try {
+      await apiClient.stop(record.id);
+      setActive(false);
+      refreshStatus();
     } finally {
       setRunning(null);
     }
@@ -91,17 +111,31 @@ export default function WorkflowCard({ record }: { record: WorkflowRecord }) {
           >
             {running === "dry" ? "Running..." : "Dry Run"}
           </button>
-          <button
-            type="button"
-            className="cta-button is--blue wf-card-run"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRun(false);
-            }}
-            disabled={running !== null}
-          >
-            {running === "live" ? "Running..." : "Run"}
-          </button>
+          {active ? (
+            <button
+              type="button"
+              className="wf-card-stop"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStop();
+              }}
+              disabled={running !== null}
+            >
+              {running === "stop" ? "Stopping..." : "Stop workflow"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="cta-button is--blue wf-card-run"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRun(false);
+              }}
+              disabled={running !== null}
+            >
+              {running === "live" ? "Starting..." : "Run"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -154,6 +188,11 @@ export default function WorkflowCard({ record }: { record: WorkflowRecord }) {
           color: var(--color--primary-blue);
         }
 
+        .wf-card-status--stopped {
+          border-color: var(--orange);
+          color: var(--orange);
+        }
+
         .wf-card-desc {
           margin: 0 0 1em;
         }
@@ -196,6 +235,20 @@ export default function WorkflowCard({ record }: { record: WorkflowRecord }) {
         .wf-card-dry-run:hover {
           border-color: var(--color--white);
           color: var(--color--white);
+        }
+
+        .wf-card-stop {
+          border: 1px solid var(--orange);
+          background-color: transparent;
+          color: var(--orange);
+          padding: 0.75em 1.25em;
+          cursor: pointer;
+          transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+        }
+
+        .wf-card-stop:hover {
+          background-color: var(--orange);
+          color: var(--color--black);
         }
       `}</style>
     </div>

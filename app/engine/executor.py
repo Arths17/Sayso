@@ -47,6 +47,59 @@ async def _run_connector(node: Node, config: dict, context: dict, dry_run: bool)
     return result
 
 
+_TERMINAL_LOOP_STATES = {
+    ExecutionState.failed,
+    ExecutionState.awaiting_approval,
+    ExecutionState.awaiting_heal_approval,
+}
+
+_continuous_tasks: dict[str, asyncio.Task] = {}
+
+
+def start_continuous_execution(workflow_id: str, spec: WorkflowSpec, uid: str, poll_interval: float = 30.0) -> None:
+    existing = _continuous_tasks.get(workflow_id)
+    if existing and not existing.done():
+        return
+    repository.set_active(workflow_id, True)
+    task = asyncio.create_task(_continuous_loop(workflow_id, spec, uid, poll_interval))
+    _continuous_tasks[workflow_id] = task
+
+
+async def stop_continuous_execution(workflow_id: str) -> None:
+    repository.set_active(workflow_id, False)
+    task = _continuous_tasks.pop(workflow_id, None)
+    if task and not task.done():
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+
+async def _continuous_loop(workflow_id: str, spec: WorkflowSpec, uid: str, poll_interval: float) -> None:
+    try:
+        while True:
+            record = repository.get_workflow(workflow_id)
+            if not record or not record.active:
+                return
+            execution = repository.new_execution(workflow_id, record.current_version_id, dry_run=False)
+            execution.context["_uid"] = uid
+            try:
+                execution = await run_execution(record.spec, execution)
+            except asyncio.CancelledError:
+                execution.state = ExecutionState.stopped
+                repository.save_execution(execution)
+                raise
+            if execution.state in _TERMINAL_LOOP_STATES:
+                repository.set_active(workflow_id, False)
+                return
+            await asyncio.sleep(poll_interval)
+    except asyncio.CancelledError:
+        pass
+    finally:
+        _continuous_tasks.pop(workflow_id, None)
+
+
 async def run_execution(spec: WorkflowSpec, execution: Execution) -> Execution:
     graph = compile_spec(spec)
     execution.state = ExecutionState.running

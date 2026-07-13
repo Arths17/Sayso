@@ -47,6 +47,15 @@ def save_clarification_answers(workflow_id: str, answers: dict[str, str]) -> Non
     store.set_workflow(workflow_id, data)
 
 
+def set_active(workflow_id: str, active: bool) -> None:
+    store = get_store()
+    data = store.get_workflow(workflow_id)
+    if data is None:
+        return
+    data["active"] = active
+    store.set_workflow(workflow_id, data)
+
+
 def save_execution(execution: Execution) -> None:
     execution.updated_at = now_iso()
     get_store().set_execution(

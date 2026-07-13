@@ -6,6 +6,7 @@ __pycache__/
 firebase-service-account*.json
 .pytest_cache/
 .claude/
+web/CLAUDE.md
 .frontend/
 node_modules/
 .DS_Store

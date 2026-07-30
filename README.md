@@ -36,7 +36,6 @@ Append Row to Google Sheets
 Send Summary Email
 ```
 
-Click Run, and it works.
 
 ### Demo narrative
 
@@ -159,7 +158,6 @@ workflows/{id}/decisions/*
 users/{uid}/credentials/google
 ```
 
-Versions are append-only, so old revisions stick around for comparison or rollback.
 
 ---
 
@@ -217,7 +215,7 @@ You should get:
 }
 ```
 
-If that works, the rest of the API should too.
+
 
 ### Notes for serverless
 
@@ -258,6 +256,6 @@ The executor never imports a connector directly — it resolves connectors throu
 
 A few decisions shaped this project.
 
-AI plans workflows; it doesn't execute them — that split is the whole point. Validation is deterministic, so a bad workflow gets caught before it runs, not halfway through. Every AI decision gets stored, mostly because I got tired of debugging generated behavior with no idea why the model did what it did. History is append-only, so edits and rollbacks don't need special-case code. Connectors sit behind a registry, so adding one doesn't mean touching the execution engine.
+AI plans workflows; it doesn't execute them. That split is the whole point. Validation is deterministic, so a bad workflow gets caught before it runs, not halfway through. Every AI decision gets stored, mostly because I got tired of debugging generated behavior with no idea why the model did what it did. History is append-only, so edits and rollbacks don't need special-case code. Connectors sit behind a registry, so adding one doesn't mean touching the execution engine.
 
-Planning can stay a little loose and experimental. Execution can't.
+

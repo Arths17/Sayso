@@ -7,6 +7,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  fetchSignInMethodsForEmail,
 } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { auth, googleProvider, firebaseReady, firebaseAuthMessage } from "@/lib/firebase";
@@ -75,6 +76,8 @@ function authErrorMessage(err: unknown): string {
         return "Enter a valid email address.";
       case "auth/too-many-requests":
         return "Too many attempts. Try again later.";
+      case "auth/email-already-in-use":
+        return "An account with this email already exists. Please log in.";
       case "auth/popup-closed-by-user":
         return "Google sign-in was cancelled.";
       default:
@@ -179,10 +182,32 @@ export default function SignupPage() {
 
                   <form
                     className="Signup_form Signup_reveal Signup_reveal-7"
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                       e.preventDefault();
                       setError(null);
-                      if (email) setStep("password");
+
+                      if (!auth) {
+                        setError(firebaseAuthMessage);
+                        return;
+                      }
+
+                      if (!email) return;
+
+                      setLoading(true);
+                      try {
+                        const signInMethods = await fetchSignInMethodsForEmail(auth, email);
+
+                        if (signInMethods.length > 0) {
+                          setError("An account with this email already exists. Please log in.");
+                          return;
+                        }
+
+                        setStep("password");
+                      } catch (err) {
+                        setError(authErrorMessage(err));
+                      } finally {
+                        setLoading(false);
+                      }
                     }}
                   >
                     <label htmlFor="email" className="hide">
@@ -201,7 +226,19 @@ export default function SignupPage() {
                       />
                     </div>
 
-                    {error && <p className="ts-12px Signup_error">{error}</p>}
+                    {error && (
+                      <p className="ts-12px Signup_error">
+                        {error}
+                        {error === "An account with this email already exists. Please log in." && (
+                          <>
+                            {" "}
+                            <Link href="/login" className="color-white Signup_footer-link">
+                              Log in
+                            </Link>
+                          </>
+                        )}
+                      </p>
+                    )}
 
                     {!firebaseReady && <p className="ts-12px Signup_error">{firebaseAuthMessage}</p>}
 

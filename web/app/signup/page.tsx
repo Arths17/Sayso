@@ -89,6 +89,7 @@ export default function SignupPage() {
   const [step, setStep] = useState<"email" | "password">("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -121,18 +122,18 @@ export default function SignupPage() {
       setError(firebaseAuthMessage);
       return;
     }
+
     setError(null);
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
     try {
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-      } catch (err) {
-        if (err instanceof FirebaseError && err.code === "auth/user-not-found") {
-          await createUserWithEmailAndPassword(auth, email, password);
-        } else {
-          throw err;
-        }
-      }
+      // Firebase handles account creation and authentication.
+      await createUserWithEmailAndPassword(auth, email, password);
       await afterAuth();
     } catch (err) {
       setError(authErrorMessage(err));
@@ -216,6 +217,8 @@ export default function SignupPage() {
                     className="Signup_back Signup_reveal Signup_reveal-1"
                     onClick={() => {
                       setError(null);
+                      setPassword("");
+                      setConfirmPassword("");
                       setStep("email");
                     }}
                   >
@@ -223,7 +226,7 @@ export default function SignupPage() {
                   </button>
 
                   <h1 className="ts-16px color-white Signup_title Signup_reveal Signup_reveal-2">
-                    Enter your password
+                    Create your account
                   </h1>
                   <p className="ts-14px color-white-50 Signup_sub Signup_reveal Signup_reveal-3">
                     Signing in as <span className="color-white">{email}</span>
@@ -240,9 +243,6 @@ export default function SignupPage() {
                       <label htmlFor="password" className="ts-12px color-white-50 mono all-caps">
                         Password
                       </label>
-                      <a href="/forgot-password" className="ts-12px color-white Signup_forgot">
-                        Forgot?
-                      </a>
                     </div>
                     <div className="w-layout-hflex hs-input_wrapper">
                       <input
@@ -250,18 +250,38 @@ export default function SignupPage() {
                         type="password"
                         className="hs-input"
                         placeholder="••••••••"
-                        autoComplete="current-password"
+                        autoComplete="new-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
+                        minLength={6}
                         autoFocus
+                      />
+                    </div>
+
+                    <div className="Signup_label-row">
+                      <label htmlFor="confirm-password" className="ts-12px color-white-50 mono all-caps">
+                        Confirm password
+                      </label>
+                    </div>
+                    <div className="w-layout-hflex hs-input_wrapper">
+                      <input
+                        id="confirm-password"
+                        type="password"
+                        className="hs-input"
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        minLength={6}
                       />
                     </div>
 
                     {error && <p className="ts-12px Signup_error">{error}</p>}
 
                     <button type="submit" className="cta-button is--blue Signup_submit" disabled={loading}>
-                      {loading ? "Signing in..." : "Sign in"}
+                      {loading ? "Creating account..." : "Create account"}
                     </button>
                   </form>
                 </>

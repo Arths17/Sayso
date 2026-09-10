@@ -11,6 +11,10 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+class StorageUnavailableError(RuntimeError):
+    """Raised when configured persistent storage cannot be initialized."""
+
+
 class Store(ABC):
     @abstractmethod
     def set_workflow(self, wid: str, data: dict[str, Any]) -> None: ...
@@ -201,7 +205,7 @@ def get_store() -> Store:
                     _store = FirestoreStore()
                 except Exception as e:
                     logger.exception("Firestore initialization failed")
-                    raise RuntimeError(
+                    raise StorageUnavailableError(
                         "Firestore is configured but unavailable; refusing to use "
                         "temporary in-memory storage"
                     ) from e

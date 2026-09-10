@@ -114,11 +114,11 @@ async def _continuous_loop(workflow_id: str, spec: WorkflowSpec, uid: str, poll_
 
 
 async def run_execution(spec: WorkflowSpec, execution: Execution) -> Execution:
-    graph = compile_spec(spec)
     execution.state = ExecutionState.running
     repository.save_execution(execution)
 
     try:
+        graph = compile_spec(spec)
         return await _run_execution_loop(graph, execution)
     except Exception as e:
         # A bug anywhere in the loop below must never leave the execution stuck at

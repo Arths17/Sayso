@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from app import google_oauth, service
 from app.agents import explainer
@@ -25,8 +25,16 @@ from app.schemas import (
     WorkflowSpec,
 )
 from app.storage import repository, versions
+from app.storage.firestore_client import StorageUnavailableError
 
 app = FastAPI(title="Sayso", version="0.1.0")
+
+
+@app.exception_handler(StorageUnavailableError)
+async def storage_unavailable(_request: Request, exc: StorageUnavailableError):
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

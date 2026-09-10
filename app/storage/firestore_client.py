@@ -200,8 +200,11 @@ def get_store() -> Store:
                 try:
                     _store = FirestoreStore()
                 except Exception as e:
-                    logger.warning("Firestore init failed (%s); using in-memory store", e)
-                    _store = InMemoryStore()
+                    logger.exception("Firestore initialization failed")
+                    raise RuntimeError(
+                        "Firestore is configured but unavailable; refusing to use "
+                        "temporary in-memory storage"
+                    ) from e
             else:
                 _store = InMemoryStore()
     return _store

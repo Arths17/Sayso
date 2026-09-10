@@ -14,13 +14,15 @@ export default function WorkflowsPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [workflows, setWorkflows] = useState<WorkflowRecord[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const refreshWorkflows = useCallback(async () => {
     try {
       const list = await apiClient.listWorkflows();
       setWorkflows(list);
-    } catch {
-      setWorkflows([]);
+      setLoadError(null);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Unable to load workflows.");
     }
   }, []);
 
@@ -49,6 +51,7 @@ export default function WorkflowsPage() {
       dek="Every workflow starts as a sentence. Sayso plans the steps, checks them, and compiles them into something you can run."
       loading={!ready}
     >
+      {loadError && <p className="wf-load-error">{loadError}</p>}
       <div className="wf_grid">
         <NewWorkflowCard showExamples={workflows.length === 0} onCreated={refreshWorkflows} />
         {workflows.map((wf) => (
@@ -61,6 +64,11 @@ export default function WorkflowsPage() {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(17em, 1fr));
           gap: var(--gaps--gap-20);
+        }
+
+        .wf-load-error {
+          margin: 0 0 var(--gaps--gap-20);
+          color: var(--orange);
         }
       `}</style>
     </PageShell>

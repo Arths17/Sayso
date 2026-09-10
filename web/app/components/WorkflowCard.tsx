@@ -60,8 +60,9 @@ export default function WorkflowCard({ record }: { record: WorkflowRecord }) {
       const res = dryRun ? await apiClient.dryRun(record.id) : await apiClient.run(record.id);
       setStatus(res.state);
       refreshStatus();
-    } catch {
+    } catch (err) {
       setStatus("failed");
+      setErrorSummary(err instanceof Error ? err.message : "Unable to run workflow.");
     } finally {
       setRunning(null);
     }

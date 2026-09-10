@@ -56,6 +56,19 @@ _TERMINAL_LOOP_STATES = {
 _continuous_tasks: dict[str, asyncio.Task] = {}
 
 
+async def run_once(workflow_id: str, spec: WorkflowSpec, uid: str) -> Execution:
+    """Run one execution in the current request lifecycle.
+
+    This is important for serverless deployments, where background asyncio tasks
+    can be terminated as soon as the HTTP request returns.
+    """
+    record = repository.get_workflow(workflow_id)
+    version_id = record.current_version_id if record else None
+    execution = repository.new_execution(workflow_id, version_id, dry_run=False)
+    execution.context["_uid"] = uid
+    return await run_execution(spec, execution)
+
+
 def start_continuous_execution(workflow_id: str, spec: WorkflowSpec, uid: str, poll_interval: float = 30.0) -> None:
     existing = _continuous_tasks.get(workflow_id)
     if existing and not existing.done():

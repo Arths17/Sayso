@@ -85,7 +85,7 @@ async def google_oauth_callback(code: str, state: str):
 async def generate(req: GenerateRequest, user=Depends(get_current_user)):
     result = await asyncio.to_thread(service.generate, req.prompt, owner_uid=user.uid)
     if result.status == "validated" and result.spec:
-        executor.start_continuous_execution(result.workflow_id, result.spec, user.uid)
+        await executor.run_once(result.workflow_id, result.spec, user.uid)
     return result
 
 
@@ -94,7 +94,7 @@ async def clarify(workflow_id: str, req: ClarifyRequest, user=Depends(get_curren
     _get_owned_workflow(workflow_id, user)
     result = await asyncio.to_thread(service.clarify, workflow_id, req.answers)
     if result.status == "validated" and result.spec:
-        executor.start_continuous_execution(workflow_id, result.spec, user.uid)
+        await executor.run_once(workflow_id, result.spec, user.uid)
     return result
 
 
@@ -131,11 +131,8 @@ async def dry_run(workflow_id: str, user=Depends(get_current_user)):
 @router.post("/workflows/{workflow_id}/run", response_model=RunResponse)
 async def run(workflow_id: str, user=Depends(get_current_user)):
     record = _get_owned_workflow(workflow_id, user)
-    executor.start_continuous_execution(workflow_id, record.spec, user.uid)
-    latest = repository.list_executions(workflow_id)
-    if latest:
-        return RunResponse(execution_id=latest[0].id, state=latest[0].state)
-    return RunResponse(execution_id="", state=ExecutionState.running)
+    execution = await executor.run_once(workflow_id, record.spec, user.uid)
+    return RunResponse(execution_id=execution.id, state=execution.state)
 
 
 @router.post("/workflows/{workflow_id}/stop")
